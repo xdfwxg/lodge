@@ -1,27 +1,26 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
-import { createLiveTurns } from './rooms/studio/turns.js'
+import { createLiveTurns } from './rooms/studio/runtime/turns.js'
 
 const ports = createCrewPorts()
-import { reviewState } from './rooms/studio/verifiers.js'
-import { normalizeTestRoom, withAssignments } from './testing/room.js'
+import { reviewState } from './rooms/studio/acceptance/verifiers.js'
+import { withAssignments } from './testing/room.js'
 
-const room = (over = {}) => normalizeTestRoom({
+const room = (over = {}) => ({
   id: 'room-1',
+  roomType: 'studio',
   state: 'active',
   live: true,
   demo: false,
   stages: [{ title: '实现', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
   verifiers: ['v1', 'v2'],
-  seatNames: { lead: '规划师', worker: '执行官', v1: '验收一', v2: '验收二' },
-  seatSpecs: [
-    { id: 'lead', name: '规划师', role: 'lead' },
-    { id: 'worker', name: '执行官', role: 'worker' },
-    { id: 'v1', name: '验收一', role: 'verifier' },
-    { id: 'v2', name: '验收二', role: 'verifier' },
-  ],
-  seatBots: { lead: 'bot-lead', worker: 'bot-worker', v1: 'bot-v1', v2: 'bot-v2' },
+  members: [
+      { id: 'lead', name: '规划师', role: 'lead', roleKind: 'planner', body: { kind: 'base', ref: 'bot-lead', name: '规划师' } },
+      { id: 'worker', name: '执行官', role: 'worker', roleKind: 'executor', body: { kind: 'base', ref: 'bot-worker', name: '执行官' } },
+      { id: 'v1', name: '验收一', role: 'verifier', roleKind: 'verifier', body: { kind: 'base', ref: 'bot-v1', name: '验收一' } },
+      { id: 'v2', name: '验收二', role: 'verifier', roleKind: 'verifier', body: { kind: 'base', ref: 'bot-v2', name: '验收二' } },
+    ],
   workers: ['worker'],
   usage: {},
   ...over,
@@ -43,7 +42,7 @@ const verdict = (authorId, pass, seq, over = {}) => ({
   meta: { stage: 0, pass, evidenceId: 'e-1', ...over },
 })
 
-test('review state waits for every verifier, then passes only when all pass', () => {
+test('review state waits for every verifier, then passes only when all pass', async () => {
   const base = [evidence()]
   assert.equal(reviewState({ room: room(), messages: base, stageIndex: 0 }).state, 'pending')
   const one = reviewState({ room: room(), messages: [...base, verdict('v1', true, 11)], stageIndex: 0 })
@@ -58,7 +57,7 @@ test('review state waits for every verifier, then passes only when all pass', ()
   assert.equal(all.received, 2)
 })
 
-test('one rejection fails the round even when the other verifier passed', () => {
+test('one rejection fails the round even when the other verifier passed', async () => {
   const outcome = reviewState({
     room: room(),
     messages: [evidence(), verdict('v1', true, 11), verdict('v2', false, 12)],
@@ -68,7 +67,7 @@ test('one rejection fails the round even when the other verifier passed', () => 
   assert.deepEqual(outcome.rejects.map(message => message.authorId), ['v2'])
 })
 
-test('a human rework invalidates the earlier evidence and PASSes', () => {
+test('a human rework invalidates the earlier evidence and PASSes', async () => {
   const rework = { id: 'r-1', kind: 'rework', authorId: 'you', seq: 13, meta: { stage: 0 } }
   const outcome = reviewState({
     room: room(),
@@ -78,7 +77,7 @@ test('a human rework invalidates the earlier evidence and PASSes', () => {
   assert.equal(outcome.state, 'none')
 })
 
-test('verdicts from an older acceptance round do not count', () => {
+test('verdicts from an older acceptance round do not count', async () => {
   const outcome = reviewState({
     room: room(),
     messages: [
@@ -92,7 +91,7 @@ test('verdicts from an older acceptance round do not count', () => {
   assert.deepEqual(outcome.missing, ['v1', 'v2'])
 })
 
-test('a newer result invalidates PASSes that pointed at the older one', () => {
+test('a newer result invalidates PASSes that pointed at the older one', async () => {
   const newer = evidence({ id: 'e-2', seq: 13 })
   const outcome = reviewState({
     room: room(),
@@ -152,12 +151,12 @@ test('the review request goes to every verifier and all PASS ends the round', as
   assert.equal(turns.busyReview(), true)
 
   turns.trackTool({ kind: 'activity', turnId: 't1', tool: { id: 'p1', name: 'Bash', step: { target: 'npm test' } } })
-  turns.captureTurn({ turnId: 't1', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v1')
+  await turns.captureTurn({ turnId: 't1', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v1')
   assert.equal(turns.busyReview(), true)
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
 
   turns.trackTool({ kind: 'activity', turnId: 't2', tool: { id: 'p2', name: 'Bash', step: { target: 'npm test' } } })
-  turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v2')
+  await turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v2')
   assert.equal(turns.busyReview(), false)
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 2)
   assert.match(messages.at(-1).text, /全部验收员通过/)
@@ -192,17 +191,17 @@ test('a rejection cancels the remaining verifier round', async () => {
     files: ports.files,
   })
   await turns.requestReview(0)
-  turns.captureTurn({ turnId: 't1', reply: 'REJECT\nno', toolCalls: 1 }, 'bot-v1')
+  await turns.captureTurn({ turnId: 't1', reply: 'REJECT\nno', toolCalls: 1 }, 'bot-v1')
   assert.equal(turns.busyReview(), false)
   // 投影在投递成功之后才出现，等这一拍落完。
   await new Promise(resolve => setImmediate(resolve))
   assert.match(messages.at(-1).text, /@执行官 验收退回，按上面的意见重做第 1 步/)
   turns.trackTool({ kind: 'activity', turnId: 't2', tool: { id: 'p2', name: 'Bash', step: { target: 'npm test' } } })
-  turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v2')
+  await turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v2')
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
 })
 
-test('review reads result evidence from the ledger, not from the message list', () => {
+test('review reads result evidence from the ledger, not from the message list', async () => {
   const messages = [evidence(), verdict('v1', true, 11), verdict('v2', true, 12)]
   const withoutLedger = reviewState({ room: room(), messages, stageIndex: 0 })
   assert.equal(withoutLedger.state, 'pass')

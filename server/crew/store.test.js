@@ -325,3 +325,76 @@ test('room history search finds words, stays in its room and skips tool noise', 
     rmSync(repo, { recursive: true, force: true })
   }
 })
+
+
+test('the studio state guard records violations at the single write entry', () => {
+  // 这一条验的是影子路径：默认或外部环境是 strict 时，这里显式回到影子。
+  const saved = process.env.LODGE_STATE_GUARD
+  process.env.LODGE_STATE_GUARD = 'shadow'
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-guard-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-repo-guard-'))
+  const store = createStore({
+    dataDir,
+    roundGuard: ({ room }) => ({ violations: room.name === 'bad' ? ['名字不能是 bad'] : [], drift: [] }),
+  })
+  try {
+    store.writeRoom({ id: 'r1', roomType: 'studio', name: 'ok', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    store.updateRoom('r1', room => { room.name = 'bad'; return { events: [] } })
+    const events = store.readEvents('r1')
+    assert.ok(events.some(event => event.type === 'state.violation' && event.payload.violations.includes('名字不能是 bad')))
+  } finally {
+    if (saved === undefined) delete process.env.LODGE_STATE_GUARD
+    else process.env.LODGE_STATE_GUARD = saved
+    store.db.close()
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('the sample room is a fixture: the strict guard does not judge demo rooms', () => {
+  const saved = process.env.LODGE_STATE_GUARD
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-demo-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-repo-demo-'))
+  const store = createStore({
+    dataDir,
+    roundGuard: ({ room }) => ({ violations: room.name === 'bad' ? ['名字不能是 bad'] : [], drift: [] }),
+  })
+  process.env.LODGE_STATE_GUARD = 'strict'
+  try {
+    // 示例房首次创建和「归档后恢复」都会写它；这条路径不能因为样例状态被拦下。
+    store.writeRoom({ id: 'demo', roomType: 'studio', demo: true, name: '示例', goal: 'g', repoPath: repo, state: 'idle', stages: [], members: [] })
+    const restored = store.updateRoom('demo', room => { room.archivedAt = null; return { events: [] } })
+    assert.equal(restored?.id, 'demo')
+    // 真实房间仍然是严格的：同一个守卫、同一份形状，非示例就会被拦。
+    store.writeRoom({ id: 'real', roomType: 'studio', name: 'ok', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    assert.throws(() => store.updateRoom('real', room => { room.name = 'bad'; return { events: [] } }), /状态不变量被破坏/)
+  } finally {
+    if (saved === undefined) delete process.env.LODGE_STATE_GUARD
+    else process.env.LODGE_STATE_GUARD = saved
+    store.db.close()
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('a strict guard refuses the write instead of recording it', () => {
+  const saved = process.env.LODGE_STATE_GUARD
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-strict-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-repo-strict-'))
+  const store = createStore({
+    dataDir,
+    roundGuard: ({ room }) => ({ violations: room.name === 'bad' ? ['名字不能是 bad'] : [], drift: [] }),
+  })
+  process.env.LODGE_STATE_GUARD = 'strict'
+  try {
+    store.writeRoom({ id: 'r1', roomType: 'studio', name: 'ok', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    assert.throws(() => store.updateRoom('r1', room => { room.name = 'bad'; return { events: [] } }), /状态不变量被破坏/)
+    assert.equal(store.readRoom('r1').name, 'ok')
+  } finally {
+    if (saved === undefined) delete process.env.LODGE_STATE_GUARD
+    else process.env.LODGE_STATE_GUARD = saved
+    store.db.close()
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})

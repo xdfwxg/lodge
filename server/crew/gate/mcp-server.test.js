@@ -178,8 +178,19 @@ test('a plan needs a stage, an executor and a verifier', () => {
   const ok = handleMessage({
     jsonrpc: '2.0', id: 500, method: 'tools/call',
     params: { name: 'submit_plan', arguments: {
-      contract: { outcomes: [{ id: 'run', statement: '能跑', observable: '命令退出码为 0' }] },
-      plan: { stages: [{ title: '实现', clauseIds: ['run'] }] },
+      contract: {
+        outcomes: [{ id: 'run', statement: '能跑', observable: '命令退出码为 0' }],
+        boundaries: ['只改 src/run.js'],
+        nonGoals: ['不做界面'],
+      },
+      plan: {
+        stages: [{
+          title: '实现',
+          deliverable: 'src/run.js 能跑',
+          clauseIds: ['run'],
+          packages: [{ title: '实现', files: ['src/run.js'], clauseIds: ['run'] }],
+        }],
+      },
       crew: { executors: [{ engine: 'claude-cli', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
     } },
   })
@@ -190,6 +201,34 @@ test('a plan needs a stage, an executor and a verifier', () => {
     params: { name: 'submit_plan', arguments: { plan: { done: ['x'], stages: [{ title: 'a' }] }, crew: { executors: [] } } },
   })
   assert.equal(missing.result.isError, true)
+})
+
+test('a plan that leaves a contract clause uncovered is refused synchronously', () => {
+  const result = handleMessage({
+    jsonrpc: '2.0', id: 502, method: 'tools/call',
+    params: { name: 'submit_plan', arguments: {
+      contract: {
+        outcomes: [
+          { id: 'run', statement: '能跑', observable: '命令退出码为 0' },
+          { id: 'docs', statement: '有说明', observable: 'README 有一节' },
+        ],
+        boundaries: ['只改 src/run.js'],
+        nonGoals: ['不做界面'],
+      },
+      plan: {
+        stages: [{
+          title: '实现',
+          deliverable: 'src/run.js 能跑',
+          clauseIds: ['run', 'docs'],
+          packages: [{ title: '实现', files: ['src/run.js'], clauseIds: ['run'] }],
+        }],
+      },
+      crew: { executors: [{ engine: 'claude-cli', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
+    } },
+  })
+  // 规划师在同一个回合里就能看到拒绝，不必等平台回头再说。
+  assert.equal(result.result.isError, true)
+  assert.match(JSON.stringify(result.result.content ?? ''), /没有落到工作包|docs/)
 })
 
 test('a successful plan keeps its full arguments even when the activity preview is cut', () => {

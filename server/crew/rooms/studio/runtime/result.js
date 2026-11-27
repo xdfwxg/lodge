@@ -1,10 +1,11 @@
+import { join } from 'node:path'
 import { systemNotice } from '../../../notices.js'
-import { activeDispatchAssignments } from '../../../assignments.js'
 import { verifierIds } from '../../../room-members.js'
-import { workspaceOf } from '../workspace.js'
-import { runProof } from '../proof-runner.js'
-import { allowedFilesFor, clauseIdsFor, filesOutsidePackage } from '../write-boundary.js'
+import { workspaceOf } from './workspace.js'
+import { runProof } from '../delivery/proof-runner.js'
+import { addedFilesOf, allowedFilesFor, filesOutsidePackage, reservedFilesFor } from '../delivery/write-boundary.js'
 import { reworkFloor } from '../../../../../shared/attempt.js'
+import { PROOF_DIR, PROOF_FILE } from '../../../../../shared/proof.js'
 
 // 执行官交回一步的结果：平台只负责把候选提交、diff 和文件清单固定下来，
 // 再把结果交给验收员。怎么验证、验什么，由验收员按房间目标自己决定。
@@ -21,7 +22,77 @@ const changedSinceManifest = (before, current) => {
   return [...new Set(changed)]
 }
 
-export const createResultMarker = ({ store, roomId, review, markProgress }) => {
+// 写边界的唯一入口：回合结束后把工作包之外的改动退回去，并留下一条房间消息。
+// 单人和并行都用这一份——并行经理以前漏掉了这一步，两个执行官各自写出了整份交付。
+export const enforceWriteBoundary = async ({ store, roomId, room, stage, stageIndex, memberId, repoPath, provider, filePort }) => {
+  if (repoPath === null || repoPath === undefined || repoPath === '') return null
+  const allowed = allowedFilesFor({ room, stage, memberId, root: repoPath })
+  if (allowed === null) return null
+  // 别的包认领的文件：辅助目录放行也不能碰，否则两个分支会在同一路径上撞车。
+  const reserved = reservedFilesFor({ room, stage, memberId, root: repoPath })
+  // 证明可能写在根目录，也可能按包写在 lodge-proof/<n>.json；两种都要读，
+  // 否则并行阶段的辅助脚本会被当成包外改动退掉。
+  const proofTexts = []
+  try { proofTexts.push(String(filePort.read(join(repoPath, PROOF_FILE)))) } catch {}
+  try {
+    for (const name of filePort.list(join(repoPath, PROOF_DIR))) {
+      if (!String(name).endsWith('.json')) continue
+      try { proofTexts.push(String(filePort.read(join(repoPath, PROOF_DIR, name)))) } catch {}
+    }
+  } catch {}
+  const proofText = proofTexts.join('\n')
+  if (provider.capabilities().vcs === 'git' && typeof provider.revertPaths === 'function') {
+    let dirty = { files: [], status: '' }
+    try {
+      dirty = await provider.changes({ path: repoPath })
+    } catch {}
+    const outside = filesOutsidePackage({
+      files: dirty.files ?? [],
+      allowed,
+      added: addedFilesOf(dirty.status),
+      proofText,
+      reserved,
+    })
+    if (outside.length === 0) return null
+    const reverted = provider.revertPaths({ path: repoPath, files: outside })
+    const outOfBounds = {
+      files: outside.slice(0, 50),
+      reverted: Array.isArray(reverted.reverted) ? reverted.reverted.slice(0, 50) : [],
+    }
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: outOfBounds.reverted.length > 0
+        ? `这一步改了这一步之外的文件，已退回：${outOfBounds.files.slice(0, 5).join('、')}。新加的辅助脚本要在证明里点名，或放在证明入口所在的目录。`
+        : `这一步改了这一步之外的文件：${outOfBounds.files.slice(0, 5).join('、')}；没有退回，请验收时核对。`,
+    })
+    return outOfBounds
+  }
+  if (provider.capabilities().vcs !== 'git' && typeof provider.manifest === 'function' &&
+    Array.isArray(room.stageBaseManifests?.[stageIndex])) {
+    // 非 git 工作区没有可回退的版本：用阶段起点的文件清单算包外改动，交给门禁拦。
+    let current = []
+    try {
+      current = provider.manifest({ path: repoPath })
+    } catch {}
+    const base = room.stageBaseManifests[stageIndex]
+    const outside = filesOutsidePackage({
+      files: changedSinceManifest(base, current),
+      allowed,
+      added: current.map(file => file.path).filter(path => !base.some(old => old.path === path)),
+      proofText,
+      reserved,
+    })
+    if (outside.length === 0) return null
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: `这一步改了这一步之外的文件：${outside.slice(0, 5).join('、')}；这个工作区不能自动退回，验收前要处理。`,
+    })
+    return { files: outside.slice(0, 50), reverted: [] }
+  }
+  return null
+}
+
+export const createResultMarker = ({ store, roomId, review, markProgress, filePort }) => {
   const seen = new Set()
 
   // 结果必须从这个回合真正干活的成员副本里取，不能拿房间的集成目录顶替。
@@ -58,66 +129,17 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
   }
 
   const markResultReady = async (room, stageIndex, turnId, worked, resultText = '', memberId = '') => {
+    // 被写/读边界拦停的回合不算交付结果：平台没有接受它，也不能把它送去复核。
+    if (room.blocked?.stage === stageIndex
+      && (room.blocked.reason === 'boundary' || room.blocked.reason === 'read-boundary')) return
     const key = `${stageIndex}:${turnId}`
     if (seen.has(key)) return
     seen.add(key)
     const provider = workspaceOf(room)
     const repoPath = repoPathOf(room, memberId)
     const stage = room.stages?.[stageIndex] ?? null
-    // 派发时记下的 clause 是这一拍的事实；没有账本（老房间/测试）才按工作包回算。
-    const dispatch = activeDispatchAssignments(store, roomId, stageIndex)
-      .filter(item => item.toMemberId === memberId && ['sent', 'working', 'reported'].includes(item.status))
-      .at(-1)
-    const clauses = dispatch !== undefined && dispatch !== null &&
-      dispatch.context !== null && typeof dispatch.context === 'object' &&
-      Object.prototype.hasOwnProperty.call(dispatch.context, 'clauseIds')
-      ? (Array.isArray(dispatch.context.clauseIds) ? dispatch.context.clauseIds : [])
-      : clauseIdsFor({ room, stage, memberId })
     // 回合结束后先退回工作包之外的改动，再做候选提交：越界内容不能混进这次交付。
-    // 只有 git 工作副本能可靠区分“这次改了什么”；复制目录和原地目录没有这层证据，靠验收核对。
-    let outOfBounds = null
-    const allowed = repoPath === null ? null : allowedFilesFor({ room, stage, memberId, root: repoPath })
-    if (repoPath !== null && allowed !== null &&
-      provider.capabilities().vcs === 'git' && typeof provider.revertPaths === 'function') {
-      let dirty = { files: [] }
-      try {
-        dirty = await provider.changes({ path: repoPath })
-      } catch {}
-      const outside = filesOutsidePackage({ files: dirty.files ?? [], allowed })
-      if (outside.length > 0) {
-        const reverted = provider.revertPaths({ path: repoPath, files: outside })
-        outOfBounds = {
-          files: outside.slice(0, 50),
-          reverted: Array.isArray(reverted.reverted) ? reverted.reverted.slice(0, 50) : [],
-        }
-        const names = outOfBounds.files.slice(0, 5).join('、')
-        store.appendMessage(roomId, {
-          kind: 'system',
-          text: outOfBounds.reverted.length > 0
-            ? `这一步改了这一步之外的文件，已退回：${names}。`
-            : `这一步改了这一步之外的文件：${names}；没有退回，请验收时核对。`,
-        })
-      }
-    } else if (repoPath !== null && allowed !== null &&
-      provider.capabilities().vcs !== 'git' && typeof provider.manifest === 'function' &&
-      Array.isArray(room.stageBaseManifests?.[stageIndex])) {
-      // 非 git 工作区没有可回退的版本：用阶段起点的文件清单算包外改动，交给门禁拦。
-      let current = []
-      try {
-        current = provider.manifest({ path: repoPath })
-      } catch {}
-      const outside = filesOutsidePackage({
-        files: changedSinceManifest(room.stageBaseManifests[stageIndex], current),
-        allowed,
-      })
-      if (outside.length > 0) {
-        outOfBounds = { files: outside.slice(0, 50), reverted: [] }
-        store.appendMessage(roomId, {
-          kind: 'system',
-          text: `这一步改了这一步之外的文件：${outside.slice(0, 5).join('、')}；这个工作区不能自动退回，验收前要处理。`,
-        })
-      }
-    }
+    const outOfBounds = await enforceWriteBoundary({ store, roomId, room, stage, stageIndex, memberId, repoPath, provider, filePort })
     let candidate = null
     try {
       if (repoPath !== null && provider.capabilities().candidate === true) {
@@ -127,20 +149,27 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
     } catch (error) {
       systemNotice({ store, roomId, text: '这一步的结果没能固定下来；待处理。', error })
     }
-    const head = repoPath !== null && typeof provider.head === 'function'
-      ? provider.head({ path: repoPath })
-      : null
+    let head = null
+    if (repoPath !== null && typeof provider.head === 'function') {
+      try {
+        head = provider.head({ path: repoPath })
+      } catch (error) {
+        // 工作副本被删/移走时，git 会直接抛；不能让它把 Lodge 进程带走。
+        systemNotice({ store, roomId, text: '这一步的工作副本不见了；房间先停在这里，检查工作区后再继续。', error })
+        return
+      }
+    }
     const acceptedRef = candidate ?? head
     const baseline = room.stageBases?.[stageIndex] ?? room.startHead ?? null
     const { files, diff, status } = await collect(room, repoPath, stageIndex, candidate, head, baseline)
     // 交付自带的证明由平台跑，不靠执行方或验收员复述；同时在阶段起点跑一次，
     // 行为要变的步骤如果在旧版本也绿，这条证明就没有绑定这次改动。
+    // 证明只回答“能不能重跑”，不对账契约要求；要求覆盖由验收员的复核负责。
     const proofRun = await runProof({
       room: { ...room, repoPath },
       ref: acceptedRef,
       baseRef: baseline,
       behavior: stage?.behavior === 'preserve' ? 'preserve' : 'change',
-      clauses,
     })
 
     // 同一 HEAD 上没有新结果时不重复送审；重做后的同一结果仍要重新送审。

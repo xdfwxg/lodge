@@ -118,6 +118,8 @@ const normalizeMessage = (raw, responderName) => {
         at: digest.at ?? raw.at ?? common.at,
         durationMs: digest.durationMs,
         reply: digest.reply ?? '',
+        // 终态是基座的事实，Lodge 只读：stopped/failed 的回合不是交付结果。
+        ...(typeof digest.stopReason === 'string' && digest.stopReason !== '' ? { stopReason: digest.stopReason } : {}),
         toolCalls: digest.toolCalls,
         tools: digest.tools ?? [],
         usage: digest.usage,
@@ -263,26 +265,43 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
 
   const health = async () => {
     try {
-      const bootstrap = await client.bootstrap()
-      return { ok: true, rooms: (bootstrap.groups ?? []).length }
+      // 基座自己的 health 给出能力；旧基座没有这一项，返回空数组，不猜。
+      const [bootstrap, base] = await Promise.all([
+        client.bootstrap(),
+        typeof client.health === 'function' ? client.health().catch(() => null) : null,
+      ])
+      return {
+        ok: true,
+        rooms: (bootstrap.groups ?? []).length,
+        networkModes: Array.isArray(base?.network_modes) ? base.network_modes : [],
+      }
     } catch (error) {
       return { ok: false, error: String(error?.message ?? error) }
     }
   }
 
   const defaultModelSelection = async () => {
+    const override = process.env.CREW_MODEL_INSTANCE && process.env.CREW_MODEL
+      ? { instanceId: process.env.CREW_MODEL_INSTANCE, model: process.env.CREW_MODEL }
+      : null
     const bootstrap = await client.bootstrap()
     const bot = (bootstrap.bots ?? []).find(item => item.hidden !== true && item.modelSelection)
-    if (bot?.modelSelection) return bot.modelSelection
-    if (process.env.CREW_MODEL_INSTANCE && process.env.CREW_MODEL) {
-      return { instanceId: process.env.CREW_MODEL_INSTANCE, model: process.env.CREW_MODEL }
+    if (override !== null) {
+      // 显式设置的运维开关要赢；基座默认 bot 只在没设的时候生效。
+      // 两者不一致必须说出来，否则一次对照会静默跑在别的模型上。
+      if (bot?.modelSelection
+        && (bot.modelSelection.instanceId !== override.instanceId || bot.modelSelection.model !== override.model)) {
+        console.warn(`[lodge] CREW_MODEL_INSTANCE 覆盖基座默认模型：${bot.modelSelection.instanceId}/${bot.modelSelection.model} → ${override.instanceId}/${override.model}`)
+      }
+      return override
     }
+    if (bot?.modelSelection) return bot.modelSelection
     throw new Error('还没有可用的模型；先在模型服务里配置一个。')
   }
 
   const ENGINE_ALIASES = {
-    'claude-cli': 'claudeAgent',
-    claude: 'claudeAgent',
+    'claude-cli': 'claude',
+    claude: 'claude',
     'codex-cli': 'codex',
     codex: 'codex',
     'grok-cli': 'grokAgent',
@@ -298,7 +317,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
   // 本机用 CLI 自己的 token 配置（例如 Claude Code 指向 DeepSeek 的 anthropic 端点）时，
   // `claude auth status` 仍是 loggedIn:false。显式打开这个开关就把这条 CLI 当成可用；
   // 只对 claude 生效，也只在开发机自己设置时才开。
-  const CLI_TOKEN_ENGINES = new Set(['claudeAgent'])
+  const CLI_TOKEN_ENGINES = new Set(['claudeAgent', 'claude'])
   const acceptCliToken = process.env.LODGE_ACCEPT_CLI_TOKEN === '1'
 
   const instances = async () => {
@@ -361,7 +380,9 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
         }
     }
     const model = explicit || defaultModel
-    if (instance !== undefined && typeof model === 'string' && model !== '') {
+    // 可选模型为空的 CLI 引擎（例如 claude）用自己配置里的默认模型：空 model 是合法选择，
+    // 驱动会省掉 --model，不由 Lodge 猜一个厂商模型名。
+    if (instance !== undefined && (model !== '' || offered.length === 0)) {
       return {
         selection: { instanceId: instance.instanceId, model },
         engine: instance.instanceId,
@@ -388,7 +409,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { deny: [...new Set(['mcp:agents:*', ...deny])] }
   }
 
-  const createMemberBot = async ({ name, soul, description, approval, mcp, roomTools = [], engine, model, toolScope = null }) => {
+  const createMemberBot = async ({ name, soul, description, approval, cwd = '', mcp, roomTools = [], autoMcpServers = null, engine, model, toolScope = null, nativeTools = null, budget = null, profile = null, limits = null, network = null }) => {
     const resolved = await resolveMemberEngine(engine, model)
     const selection = resolved.selection
     const servers = [...new Set([
@@ -398,11 +419,23 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     const settings = {
       ...(typeof soul === 'string' && soul !== '' ? { soul } : {}),
       ...(typeof description === 'string' && description !== '' ? { description } : {}),
+      // 工作副本跟着成员走：房间群聊可能被几个人共用，不能拿其中一个人的目录当所有人的 cwd。
+      ...(typeof cwd === 'string' && cwd !== '' ? { cwd } : {}),
       ...(approval === undefined ? {} : { approvalMode: approval }),
       ...(servers.length > 0 ? { mcpServers: servers } : {}),
       // 基座会给每个 bot 自动挂内置 agents MCP；Lodge 的成员只用原生 read/exec/write，
       // 不把 coordinate_bots/session_search 这类团队工具带进房间。
       toolScope: normalizeToolScope(toolScope),
+      // 原生工具面只在支持收窄的驱动上传；别的驱动保持基座默认，不吃未知字段。
+      ...(selection.instanceId === 'pi' && Array.isArray(nativeTools) ? { nativeTools } : {}),
+      // 工作区已经同意的提供方：这些服务器的工具不再逐条问。
+      ...(selection.instanceId === 'pi' && Array.isArray(autoMcpServers) && autoMcpServers.length > 0 ? { autoMcpServers } : {}),
+      // 运行时预算同样只给执行它的驱动；数字由产品层声明，基座不猜。
+      ...(selection.instanceId === 'pi' && budget !== null && typeof budget === 'object' ? { budget } : {}),
+      // 沙箱边界也是产品的声明：档位、上限、网络。只有支持边界的驱动才收这些字段。
+      ...(selection.instanceId === 'pi' && typeof profile === 'string' ? { profile } : {}),
+      ...(selection.instanceId === 'pi' && limits !== null && typeof limits === 'object' ? { limits } : {}),
+      ...(selection.instanceId === 'pi' && typeof network === 'string' ? { network } : {}),
     }
     const created = await client.createBot({ name, modelSelection: selection, settings })
     const bot = created?.bot ?? created
@@ -422,7 +455,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
 
   // 原地换身体：基座支持在同一个 bot/thread 上换模型和设定，历史不用重开。
   // 语义参数留在业务侧，基座字段只在这个适配层出现。
-  const patchMemberBot = async (botId, { soul, description, approval, mcp = [], roomTools = [], modelSelection, toolScope = null }) => {
+  const patchMemberBot = async (botId, { soul, description, approval, mcp = [], roomTools = [], autoMcpServers = null, modelSelection, toolScope = null, nativeTools = null, budget = null, profile = null, limits = null, network = null }) => {
     const servers = [...new Set([
       ...(Array.isArray(mcp) ? mcp.map(grant => grant.server) : []),
       ...(Array.isArray(roomTools) ? roomTools : []),
@@ -433,6 +466,12 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       ...(approval === undefined ? {} : { approvalMode: approval }),
       mcpServers: servers,
       toolScope: normalizeToolScope(toolScope),
+      ...(modelSelection?.instanceId === 'pi' && Array.isArray(nativeTools) ? { nativeTools } : {}),
+      ...(modelSelection?.instanceId === 'pi' && Array.isArray(autoMcpServers) && autoMcpServers.length > 0 ? { autoMcpServers } : {}),
+      ...(modelSelection?.instanceId === 'pi' && budget !== null && typeof budget === 'object' ? { budget } : {}),
+      ...(modelSelection?.instanceId === 'pi' && typeof profile === 'string' ? { profile } : {}),
+      ...(modelSelection?.instanceId === 'pi' && limits !== null && typeof limits === 'object' ? { limits } : {}),
+      ...(modelSelection?.instanceId === 'pi' && typeof network === 'string' ? { network } : {}),
       modelSelection,
     })
     const bot = body?.bot ?? body
@@ -519,7 +558,10 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
-  const subscribe = ({ roomId, sessionRef, onEvent = () => {}, onState = () => {} }) => {
+  // sessionRefs：成员的私有房间线程（盲评、并行派发）。这些线程只该把权限卡和回合结果送进来，
+  // 文字仍留在私有线程里，不投进房间时间线。
+  const subscribe = ({ roomId, sessionRef, sessionRefs = [], onEvent = () => {}, onState = () => {} }) => {
+    const privateRefs = new Set(sessionRefs.filter(ref => typeof ref === 'string' && ref !== '' && ref !== sessionRef))
     const controller = new AbortController()
     void client.watchEvents({
       signal: controller.signal,
@@ -534,9 +576,13 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
           return
         }
         if (frame.kind === 'message' || frame.kind === 'message.patch') {
-          if (frame.threadId !== sessionRef) return
-          const message = normalizeMessage(frame.message, responderNameFor(sessionRef))
-          if (message !== null) onEvent({ type: RUNTIME_EVENT.message, message })
+          const isPrivate = privateRefs.has(frame.threadId)
+          if (!isPrivate && frame.threadId !== sessionRef) return
+          const message = normalizeMessage(frame.message, responderNameFor(frame.threadId))
+          if (message !== null) {
+            // 私有线程要带上它自己的线程号：权限卡必须在收到它的那条线程上回答。
+          onEvent({ type: RUNTIME_EVENT.message, message, ...(isPrivate ? { private: true, sessionRef: frame.threadId } : {}) })
+          }
           return
         }
         if (frame.kind === 'group' && frame.group?.id === roomId) {

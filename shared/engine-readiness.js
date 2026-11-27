@@ -10,11 +10,41 @@ export const engineBlockReason = (engine, { requireApproval = false } = {}) => {
   if (engine.available !== true) return engine.reason === '' || engine.reason === undefined ? '模型服务不可用' : engine.reason
   if (engine.authenticated === false) return '登录失效'
   if (!engineHasModel(engine)) return '没有配置模型'
+  // 没有工具面的驱动根本做不了要动手的活；这话比“不会先问你”更接近用户看到的事实。
+  if (requireApproval === true && engine.capabilities?.tools === false) return '还不能改文件、跑命令'
   if (requireApproval === true && engine.capabilities?.approvalReview !== true) return '不会先问你外部动作'
   return ''
 }
 
 export const engineReady = (engine, options = {}) => engineBlockReason(engine, options) === ''
+
+// 实例 id 是唯一入口；模型或厂商名写错时，先按“哪个实例正好提供这个模型”认一次，
+// 认不出来再把可用的清单原样交回去，让规划师同一回合就能改对。
+export const resolveEngine = (engines, engineId, modelId = '') => {
+  const list = Array.isArray(engines) ? engines : []
+  const byId = list.find(item => item?.id === engineId)
+  if (byId !== undefined) return byId
+  if (modelId === '') return undefined
+  const byModel = list.filter(item => (item?.models?.options ?? []).some(option => option?.id === modelId))
+  return byModel.length === 1 ? byModel[0] : undefined
+}
+
+const engineLine = engine => {
+  const options = (engine?.models?.options ?? []).map(option => option?.id).filter(Boolean)
+  return `${engine?.id ?? '?'}${options.length === 0 ? '' : ` · ${options.join(' / ')}`}`
+}
+
+export const availableEngines = engines => {
+  const list = (Array.isArray(engines) ? engines : []).filter(item => item?.available === true || (item?.models?.options ?? []).length > 0)
+  return list.map(engineLine).join('、')
+}
+
+export const modelBlockReason = (engine, modelId) => {
+  if (engine === undefined || engine === null || modelId === '') return ''
+  const options = (engine.models?.options ?? []).map(option => option?.id).filter(Boolean)
+  if (options.length === 0) return ''
+  return options.includes(modelId) ? '' : `这个模型不在可用列表里；${engine.id} 可用：${options.join(' / ')}`
+}
 
 export const engineBlockLabel = reason => (
   reason === '登录失效' ? '未登录'

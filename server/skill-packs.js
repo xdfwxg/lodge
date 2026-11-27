@@ -42,13 +42,12 @@ export const createSkillPackGate = ({ ensure, log = console.warn }) => {
 }
 
 export const ensureRoleSkillPacks = async ({ client, root, log = console.log }) => {
-  if (process.env.CREW_ROLE_SKILLS === 'off') return { skipped: true, total: TOOLBOX_SKILLS.length, conflicts: [] }
   const packs = join(root, 'skills', 'role-packs')
   const library = await openLibrary(client)
   const byName = new Map((library?.skills ?? []).map(skill => [skill.name, skill]))
   let imported = 0
   let approved = 0
-  const conflicts = []
+  const replaced = []
   for (const name of TOOLBOX_SKILLS) {
     const text = readFileSync(join(packs, name, 'SKILL.md'), 'utf8')
     const existing = byName.get(name)
@@ -61,10 +60,12 @@ export const ensureRoleSkillPacks = async ({ client, root, log = console.log }) 
     }
     const stored = await client.readLibrarySkill(name)
     if (!sameText(stored?.text, text)) {
-      // 基座不支持覆盖同名技能。技能已经存在且可用，不能因为文案漂移把建房拦住；
-      // 记下冲突，继续用库里的版本，升级基座或人工处理后再更新。
-      conflicts.push(name)
-      log(`角色技能 ${name} 与基座里的同名技能内容不同；保留基座版本，不覆盖`)
+      // 同名不覆盖是基座的默认（避免升级悄悄改掉旧会话的纪律）。角色包归 Lodge 所有，
+      // 改过就删掉旧的再按新正文导入——旧的那份直接消失，不留两套真相。
+      await client.deleteLibrarySkill(name)
+      await client.importLibrarySkill(text)
+      await client.approveLibrarySkill(name)
+      replaced.push(name)
       continue
     }
     if (existing.enabled !== true) {
@@ -72,6 +73,6 @@ export const ensureRoleSkillPacks = async ({ client, root, log = console.log }) 
       approved += 1
     }
   }
-  log(`role skill packs: ${TOOLBOX_SKILLS.length} ready (${imported} imported, ${approved} approved${conflicts.length === 0 ? '' : `, ${conflicts.length} kept from base`})`)
-  return { skipped: false, total: TOOLBOX_SKILLS.length, imported, approved, conflicts }
+  log(`role skill packs: ${TOOLBOX_SKILLS.length} ready (${imported} imported, ${approved} approved${replaced.length === 0 ? '' : `, ${replaced.length} replaced`})`)
+  return { total: TOOLBOX_SKILLS.length, imported, approved, replaced }
 }

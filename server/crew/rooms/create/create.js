@@ -14,6 +14,7 @@ import { executorsNeeded } from '../../../../shared/crew-proposal.js'
 import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
 import { grantBrowserToAll, needsBrowser, stripBrowser } from '../../room-access.js'
+import { networkModeOf } from '../../../../shared/room-policy.js'
 import { uniqueRoomShort } from './short-id.js'
 import { buildRoundFromRoom, composeRoundView, shortTitleOf, studioFromRoom } from '../../rounds/record.js'
 
@@ -44,6 +45,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     sourceRoomId,
     sourceName,
     bootstrap,
+    policy,
   } = request
   const mode = roomModeForType(roomType.id)
   const capabilities = engine.capabilities()
@@ -105,6 +107,16 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const short = uniqueRoomShort({ store, workspace: ports.workspace, provider })
   const sourceRepo = requestedRepo === '' ? join(ports.workspace.root(), `room-${short}`) : resolve(requestedRepo)
   const workspaceCaps = provider.capabilities()
+  if (workspaceCaps.desktop === true) {
+    // 电脑只有工作室能碰：聊天室没有工作区，也就没有这双手。
+    if (roomType.id !== 'studio') {
+      return fail('invalid', '聊天室不能在这台电脑上干活；要交付就开工作室')
+    }
+    const ready = await ports.desktopMcp?.ensure?.()
+    if (ready !== true) {
+      return fail('invalid', '这台电脑还没有接上电脑操作的提供方；先配置 LODGE_DESKTOP_MCP_URL')
+    }
+  }
   if (workspaceCaps.isolation === 'direct') {
     // 原地修改没有验收副本；验收员只读，避免 exec 改到用户目录。
     roster = roster.map(member => (
@@ -163,6 +175,8 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       workspaces,
       verifiers,
       roomType: roomType.id,
+      policy,
+      desktop: workspaceCaps.desktop === true,
       })
     // 身体体检：没装好或没登录的模型在开工前就拦下，不把失败留到第一回合。
     const bodyIssues = (provisioned.bodyIssues ?? []).filter(item => item.issue !== '')
@@ -174,8 +188,11 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     const members = provisioned.members
     // 外部动作只有在驱动会停下来问人时才安全；不会问的执行官不能开工。
     // 聊天室虽然只读，但读文件和只读公网也要经过同一张确认卡。
+    // 没有工具面的驱动（claude / codex v1）不经过审批卡：它们本来就读不到、改不了、跑不了。
+    // 但也因此做不了要动手的活；工作室里的执行官不能交给它们。
     const blocked = members.filter(member => (
       provisioned.approvalGates?.[member.id] === false &&
+      provisioned.toolGates?.[member.id] !== false &&
       (roomType.readOnly === true || member.permissions?.exec === true)
     ))
     if (blocked.length > 0) {
@@ -186,6 +203,33 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
           ? `${blocked.map(member => member.name).join('、')}用的模型不会先问你；聊天室要读文件或联网，换一个会先问你的模型。`
           : `${blocked.map(member => member.name).join('、')}用的模型不会逐次确认外部动作；换一个会先问你的模型，或把这件事放进聊天室讨论。`,
       )
+    }
+    // 工作室里每个角色都要动手（规划师读文件和 gate、执行官改、验收员跑检查）；
+    // 聊天室只聊天，没有工具面的成员照样能发言。
+    const toolLess = members.filter(member => (
+      provisioned.toolGates?.[member.id] === false && roomType.readOnly !== true
+    ))
+    if (toolLess.length > 0) {
+      await discard()
+      return fail('invalid', `${toolLess.map(member => member.name).join('、')}用的模型这一版还不能改文件、跑命令；要动手的活请换 pi。`)
+    }
+    // “只连模型”靠基座的按成员边界；别的引擎收不到这个声明，建房时就说清楚。
+    if (networkModeOf(policy) === 'model') {
+      let modes = []
+      try {
+        modes = (await engine.health?.())?.networkModes ?? []
+      } catch {
+        modes = []
+      }
+      if (!modes.includes('model')) {
+        await discard()
+        return fail('invalid', '这个基座还不支持“只连模型”；先升级基座。')
+      }
+      const unscoped = members.filter(member => member.body?.engine !== 'pi')
+      if (unscoped.length > 0) {
+        await discard()
+        return fail('invalid', `这些成员用的模型不支持“只连模型”：${unscoped.map(member => member.name).join('、')}。`)
+      }
     }
     const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, align: initialAlign, bootstrap })
     room = buildRoomRecord({
@@ -213,6 +257,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         autoDeliver,
       builtStages,
       align: initialAlign,
+      policy,
       gate: gateRecordOf({
         review: gate,
         humanReviewed: handoffBriefReviewed,

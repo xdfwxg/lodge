@@ -1,7 +1,10 @@
 import { realpathSync, statSync } from 'node:fs'
 import { basename, isAbsolute, relative, resolve } from 'node:path'
 
-export { openablePath } from '../shared/system-policy.js'
+import { openablePath as policyOf } from '../shared/system-policy.js'
+
+// 共享层只放判据；读文件系统由壳这边注入。
+export const openablePath = target => policyOf(target, { stat: statSync, realpath: realpathSync })
 
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:'])
 

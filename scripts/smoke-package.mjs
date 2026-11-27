@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { packageArgs, packageLayout } from './package-layout.mjs'
 
-const { app: appPath, platform } = packageArgs(process.argv.slice(2))
+const { app: appPath } = packageArgs(process.argv.slice(2))
 const app = resolve(appPath)
-const layout = packageLayout({ platform, app })
+const layout = packageLayout({ app })
 for (const file of layout.required) {
   if (!existsSync(join(layout.resources, file))) throw new Error(`missing packaged file: ${file}`)
 }

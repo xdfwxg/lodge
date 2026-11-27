@@ -50,7 +50,8 @@ test('member prompts and semantic capability settings cross the engine port', as
     soul: '你是队长',
     description: '规划',
     approval: 'ask',
-    mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }],
+    cwd: '/work/planner',
+    mcp: [{ server: 'github', approval: 'ask' }],
   })
 
   assert.equal(member.id, 'member-1')
@@ -58,12 +59,62 @@ test('member prompts and semantic capability settings cross the engine port', as
   assert.equal(client.captured.bot.soul, undefined)
   assert.equal(client.captured.bot.settings.soul, '你是队长')
   assert.equal(client.captured.bot.settings.description, '规划')
+  // 工作副本跟着成员走，不能落在房间群里某个人的目录上。
+  assert.equal(client.captured.bot.settings.cwd, '/work/planner')
   assert.equal(client.captured.bot.settings.approvalMode, 'ask')
   assert.deepEqual(client.captured.bot.settings.mcpServers, ['github'])
   assert.deepEqual(client.captured.bot.settings.toolScope, { deny: ['mcp:agents:*'] })
   assert.equal(engine.capabilities().mcp, true)
   assert.equal(engine.capabilities().cancel, true)
   assert.equal(engine.capabilities().schedules, false)
+})
+
+test('a pi member carries the tool grant and the workspace-consented servers', async () => {
+  const client = fakeClient()
+  client.instances = async () => ({ instances: [{
+    instanceId: 'pi',
+    driverKind: 'pi',
+    snapshot: { state: 'available' },
+    models: { default: 'm', options: [{ id: 'm' }] },
+  }] })
+  const engine = createEngine({ client })
+  await engine.createMemberBot({
+    name: 'Worker',
+    engine: 'pi',
+    model: '',
+    approval: 'auto',
+    mcp: [{ server: 'desktop', approval: 'auto' }],
+    autoMcpServers: ['desktop'],
+    nativeTools: ['read', 'bash'],
+    budget: { toolCalls: 1000, maxMs: 1000 },
+  })
+  assert.deepEqual(client.captured.bot.settings.mcpServers, ['desktop'])
+  assert.deepEqual(client.captured.bot.settings.autoMcpServers, ['desktop'])
+  assert.deepEqual(client.captured.bot.settings.nativeTools, ['read', 'bash'])
+})
+
+test('private member threads deliver messages but carry the private flag', () => {
+  let onFrame = null
+  const client = { ...fakeClient(), watchEvents: ({ onFrame: receive }) => { onFrame = receive } }
+  const engine = createEngine({ client })
+  const events = []
+  const stop = engine.subscribe({
+    roomId: 'group-1',
+    sessionRef: 'chat-1',
+    sessionRefs: ['private-1'],
+    onEvent: event => events.push(event),
+  })
+  onFrame({ kind: 'message', threadId: 'private-1', message: { id: 'm1', kind: 'text', text: '盲评内容', from: { botId: 'b1' } } })
+  onFrame({ kind: 'message', threadId: 'chat-1', message: { id: 'm2', kind: 'text', text: '公开内容', from: { botId: 'b1' } } })
+  onFrame({ kind: 'message', threadId: 'other', message: { id: 'm3', kind: 'text', text: '别人的线程', from: { botId: 'b1' } } })
+  stop()
+  assert.equal(events.length, 2)
+  assert.equal(events[0].private, true)
+  // 私有线程的事件带自己的线程号：权限卡要在那条线程上回答。
+  assert.equal(events[0].sessionRef, 'private-1')
+  assert.equal(events[0].message.text, '盲评内容')
+  assert.equal(events[1].private, undefined)
+  assert.equal(events[1].message.text, '公开内容')
 })
 
 test('a role tool scope is merged with the base agents deny', async () => {
@@ -86,7 +137,7 @@ test('a body patch keeps semantic fields on this side of the port', async () => 
     soul: '新性格',
     description: '工位',
     approval: 'ask',
-    mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }],
+    mcp: [{ server: 'github', approval: 'ask' }],
     roomTools: ['lodge_gate'],
     modelSelection: { instanceId: 'pi', model: 'deepseek/deepseek-flash' },
   })
@@ -173,7 +224,7 @@ test('room tools are mounted next to external MCP grants', async () => {
   await engine.createMemberBot({
     name: 'PlannerAbc',
     approval: 'ask',
-    mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }],
+    mcp: [{ server: 'github', approval: 'ask' }],
     roomTools: ['lodge-planner-room-abc123'],
   })
   assert.deepEqual(client.captured.bot.settings.mcpServers, ['github', 'lodge-planner-room-abc123'])
@@ -219,6 +270,26 @@ test('pi-cli binds to a piAgent instance', async () => {
   assert.equal(member.fallback, false)
   assert.equal(client.captured.bot.modelSelection.instanceId, 'pi')
   assert.equal(client.captured.bot.modelSelection.model, 'deepseekAnthropic/deepseek-flash')
+})
+
+test('a CLI engine with no model list uses its own configured default', async () => {
+  const client = fakeClient()
+  client.instances = async () => ({
+    instances: [{
+      instanceId: 'claude',
+      driverKind: 'claude',
+      displayName: 'Claude Code',
+      snapshot: { state: 'available' },
+      models: { default: '', options: [] },
+      capabilities: { approvalReview: false },
+    }],
+  })
+  const engine = createEngine({ client })
+  const member = await engine.createMemberBot({ name: 'Chat', engine: 'claude' })
+  assert.equal(member.engine, 'claude')
+  assert.equal(member.model, '')
+  assert.equal(member.fallback, false)
+  assert.deepEqual(client.captured.bot.modelSelection, { instanceId: 'claude', model: '' })
 })
 
 test('an unoffered model falls back explicitly instead of silently switching', async () => {
@@ -407,4 +478,86 @@ test('an activity carries the tool step for the room status', async () => {
   assert.equal(messages[0].kind, 'activity')
   assert.equal(messages[0].tool.step.target, 'pip')
   assert.equal(messages[0].tool.spoken, 'running a command')
+})
+
+test('an explicit CREW_MODEL override wins over the base default bot, loudly', async () => {
+  const saved = { instance: process.env.CREW_MODEL_INSTANCE, model: process.env.CREW_MODEL }
+  const warnings = []
+  const warn = console.warn
+  console.warn = (...args) => warnings.push(args.join(' '))
+  try {
+    delete process.env.CREW_MODEL_INSTANCE
+    delete process.env.CREW_MODEL
+    const baseClient = fakeClient()
+    await createEngine({ client: baseClient }).createMemberBot({
+      name: '默认',
+      budget: { toolCalls: 200, maxMs: 1_800_000 },
+    })
+    assert.deepEqual(baseClient.captured.bot.modelSelection, { instanceId: 'claude', model: 'claude-sonnet-5' })
+
+    process.env.CREW_MODEL_INSTANCE = 'pi'
+    process.env.CREW_MODEL = 'deepseek/deepseek-flash'
+    const overrideClient = fakeClient()
+    await createEngine({ client: overrideClient }).createMemberBot({
+      name: '覆盖',
+      budget: { toolCalls: 200, maxMs: 1_800_000 },
+    })
+    assert.deepEqual(overrideClient.captured.bot.modelSelection, { instanceId: 'pi', model: 'deepseek/deepseek-flash' })
+    // 预算只在执行它的驱动上传；base 默认模型那条路不带这个字段。
+    assert.deepEqual(overrideClient.captured.bot.settings.budget, { toolCalls: 200, maxMs: 1_800_000 })
+    assert.equal(baseClient.captured.bot.settings.budget, undefined)
+    assert.ok(
+      warnings.some(line => line.includes('CREW_MODEL_INSTANCE') && line.includes('覆盖基座默认模型')),
+      'the silent override becomes a startup warning',
+    )
+  } finally {
+    console.warn = warn
+    if (saved.instance === undefined) delete process.env.CREW_MODEL_INSTANCE
+    else process.env.CREW_MODEL_INSTANCE = saved.instance
+    if (saved.model === undefined) delete process.env.CREW_MODEL
+    else process.env.CREW_MODEL = saved.model
+  }
+})
+
+test('pi members carry the sandbox declarations from the product layer', async () => {
+  const captured = {}
+  const client = {
+    instances: async () => ({
+      instances: [{
+        instanceId: 'pi',
+        driverKind: 'pi',
+        snapshot: { state: 'available' },
+        models: { default: 'pi/default', options: [{ id: 'pi/default' }] },
+      }],
+    }),
+    createBot: async payload => {
+      captured.bot = payload
+      return { bot: { id: 'pi-1', name: payload.name } }
+    },
+    patchBot: async (id, payload) => {
+      captured.patch = payload
+      return { bot: { id, threadId: 'thread-1', modelSelection: payload.modelSelection } }
+    },
+  }
+  const engine = createEngine({ client })
+  await engine.createMemberBot({
+    name: 'Pi',
+    engine: 'pi',
+    profile: 'strict',
+    limits: { fileBytes: 1024, processes: 8 },
+    network: 'proxy',
+  })
+  assert.equal(captured.bot.settings.profile, 'strict')
+  assert.deepEqual(captured.bot.settings.limits, { fileBytes: 1024, processes: 8 })
+  assert.equal(captured.bot.settings.network, 'proxy')
+
+  await engine.patchMemberBot('pi-1', {
+    modelSelection: { instanceId: 'pi', model: 'pi/default' },
+    profile: 'standard',
+    limits: { fileBytes: 2048, processes: 16 },
+    network: 'none',
+  })
+  assert.equal(captured.patch.profile, 'standard')
+  assert.deepEqual(captured.patch.limits, { fileBytes: 2048, processes: 16 })
+  assert.equal(captured.patch.network, 'none')
 })

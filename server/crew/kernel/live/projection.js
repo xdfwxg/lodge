@@ -34,6 +34,14 @@ export const matchEcho = (messages, text, at) => {
 }
 
 export const createMessageProjector = ({ store }) => {
+  // 一次工具调用的两帧（开始 / 回执）落到同一条时间线记录上。
+  // 只记 id，不每次读全量消息；超过上限先清空，宁可多一行也不让映射无限长。
+  const toolRows = new Map()
+  const toolRowKey = (roomId, turnId, itemId) => `${roomId}:${turnId}:${itemId}`
+  const rememberToolRow = (key, id) => {
+    if (toolRows.size > 5000) toolRows.clear()
+    toolRows.set(key, id)
+  }
   const toStored = (roomId, message) => {
     const room = store.readRoom(roomId)
     if (room?.hiddenBaseMessages?.includes(message.id) === true) return null
@@ -65,17 +73,29 @@ export const createMessageProjector = ({ store }) => {
       const hint = value => (typeof value === 'string' && value.trim() !== '' ? value.trim().slice(0, 200) : '')
       const target = hint(step.target)
       const detail = hint(step.detail)
+      // 同一次工具调用先来开始、再来回执：时间线只留一行，后到的结果覆盖前一条，
+      // 不把一次 bash 记成两条“bash”。按 itemId + turnId 认同一次调用。
+      const itemId = typeof message.tool?.itemId === 'string' ? message.tool.itemId : ''
+      const turnId = typeof message.turnId === 'string' ? message.turnId : ''
+      const key = itemId === '' || turnId === '' ? '' : toolRowKey(roomId, turnId, itemId)
+      const previous = key === '' ? undefined : toolRows.get(key)
+      const id = previous ?? message.id
+      if (key !== '') rememberToolRow(key, id)
       return {
         ...common,
+        id,
         kind: 'activity',
         authorId: memberId ?? 'executor',
         text,
         meta: {
-          ok: message.ok,
+          // 还没结束的调用没有 ok：界面据此知道它还在跑。
+          ...(typeof message.ok === 'boolean' ? { ok: message.ok } : {}),
           ...(tool === '' ? {} : { tool }),
           ...(action === null ? {} : { action }),
           ...(target === '' ? {} : { target }),
           ...(detail === '' ? {} : { detail }),
+          ...(itemId === '' ? {} : { itemId }),
+          ...(turnId === '' ? {} : { turnId }),
         },
       }
     }

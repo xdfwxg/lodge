@@ -6,7 +6,7 @@ import test from 'node:test'
 import { roomNeedsYou } from './attention.js'
 import { createCrewPorts } from './crew-ports.js'
 import { createLiveApprovals } from './kernel/live/approvals.js'
-import { createLiveRooms } from './rooms/base/live.js'
+import { createLiveRooms } from './rooms/live/live.js'
 import { createStore } from './store.js'
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 20))
@@ -25,6 +25,7 @@ const setup = async (options = {}) => {
     sourceRepo: dir,
     workspace: { provider: options.provider ?? 'git', capabilities: {} },
     stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
+    policy: options.policy ?? { files: 'direct', network: 'proxy', external: 'ask' },
     members: [{
       id: 'worker',
       name: '执行',
@@ -110,7 +111,7 @@ const setup = async (options = {}) => {
 
 test('a browser MCP read is answered without holding it', async () => {
   const ctx = await setup({
-    mcp: [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }],
+    mcp: [{ server: 'chrome-devtools', approval: 'ask' }],
   })
   try {
     const requestId = ctx.permission('打开航班页面', {
@@ -127,7 +128,7 @@ test('a browser MCP read is answered without holding it', async () => {
 
 test('the same member still asks for non-browser external actions', async () => {
   const ctx = await setup({
-    mcp: [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }],
+    mcp: [{ server: 'chrome-devtools', approval: 'ask' }],
   })
   try {
     ctx.permission('git push', { tool: 'Bash', action: 'exec' })
@@ -362,7 +363,8 @@ test('an external command is held for the human instead of being auto-allowed', 
 test('a denial answers the base card with deny and leaves the approval denied', async () => {
   const ctx = await setup()
   try {
-    ctx.permission('rm -rf build')
+    // 工作副本外的删除才需要人确认；副本内的删除由沙箱兜底。
+    ctx.permission('rm -rf /etc')
     await tick()
     const approval = ctx.room().approvals[0]
     await ctx.live.decideApproval('room-1', approval.id, 'deny')
@@ -396,6 +398,27 @@ test('stopping a room expires approvals that can no longer be answered', async (
     const late = await ctx.live.decideApproval('room-1', ctx.room().approvals[0].id, 'allow')
     assert.equal(late.ok, false)
     assert.match(late.reason, /没有待确认/)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('a card that cannot outlive a restart says so in the room, and the base gets the denial', async () => {
+  const ctx = await setup()
+  try {
+    ctx.permission('npm install left-pad')
+    await tick()
+    const expiry = await ctx.live.expireApprovals('room-1', '房间重新连接，上一张权限卡已不在等待')
+    assert.equal(expiry.approvals[0].state, 'expired')
+    // 人看到的不是一张永远等人的卡，而是一句说清原因的系统消息。
+    const messages = ctx.store.readMessages('room-1')
+    const notice = messages.find(message => /这个操作已经过期/.test(message.text ?? ''))
+    assert.ok(notice)
+    assert.match(notice.text, /房间重新连接/)
+    // 基座那张卡也收到拒绝，那个回合不会一直挂着。
+    assert.equal(ctx.answers.at(-1).behavior, 'deny')
+    const late = await ctx.live.decideApproval('room-1', ctx.room().approvals[0].id, 'allow')
+    assert.equal(late.ok, false)
   } finally {
     ctx.close()
   }

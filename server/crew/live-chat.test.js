@@ -3,21 +3,19 @@ import test from 'node:test'
 import { createRoomChat } from './kernel/live/bus.js'
 import { ROOM_CHAT_BULLETIN } from './room-chat.js'
 import { dropStaleStreams } from './rooms/chat/projection.js'
-import { normalizeTestRoom } from './testing/room.js'
 
-const baseRoom = () => normalizeTestRoom({
+
+const baseRoom = () => ({
   id: 'room-1',
   name: '样例房',
   goal: '把事做完',
   repoPath: '/tmp/room',
-  leadSeat: 'planner',
-  seatBots: { planner: 'b-planner', executor: 'b-executor', verifier: 'b-verifier' },
-  seatNames: { planner: 'Plannerea1', executor: 'Executorea1', verifier: 'Verifierea1' },
-  seatSpecs: [
-    { id: 'planner', name: '规划师' },
-    { id: 'executor', name: '执行者' },
-    { id: 'verifier', name: '验收员' },
-  ],
+  leadMemberId: 'planner',
+  members: [
+      { "id": "planner", "name": "规划师", body: {"kind":"base","ref":"b-planner","name":"Plannerea1"} },
+      { "id": "executor", "name": "执行者", body: {"kind":"base","ref":"b-executor","name":"Executorea1"} },
+      { "id": "verifier", "name": "验收员", body: {"kind":"base","ref":"b-verifier","name":"Verifierea1"} },
+    ],
 })
 
 const setup = (capabilities = { streaming: true, mentions: true, provisioning: true, approvals: true }, projector = null) => {
@@ -523,6 +521,31 @@ test('permission cards are handed to the room strategy', () => {
   assert.equal(ctx.answered.length, 0)
 })
 
+test('a private review thread still delivers its permission cards', () => {
+  const ctx = setup()
+  const room = {
+    ...ctx.room(),
+    roomType: 'studio',
+    chatRoom: { id: 'chat-1', sessionRef: 'thread-1' },
+    members: [{ id: 'executor', body: { ref: 'b-executor', sessionRef: 'private-1' } }],
+  }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  // 私有线程在订阅里登记，事件流才能把它送进来。
+  assert.deepEqual(ctx.subscribed[0].sessionRefs, ['private-1'])
+  ctx.subscribed[0].onEvent({
+    private: true,
+    message: { authorRef: 'b-executor', card: { requestType: 'permission', requestId: 'p9', action: 'exec', tool: 'Bash' } },
+  })
+  assert.deepEqual(ctx.permissions.map(item => item.message.card.action), ['exec'])
+  // 私有线程的文字不投进房间时间线。
+  ctx.subscribed[0].onEvent({
+    private: true,
+    message: { id: 'private-text', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '盲评内容' },
+  })
+  assert.equal(ctx.messages.some(message => message.text === '盲评内容'), false)
+})
+
 test('permission cards are ignored when the runtime has no approvals', () => {
   const ctx = setup({ streaming: true, mentions: true, provisioning: true, approvals: false })
   const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
@@ -532,4 +555,28 @@ test('permission cards are ignored when the runtime has no approvals', () => {
     message: { authorRef: 'b-executor', card: { requestType: 'permission', requestId: 'p1', action: 'read', tool: 'Read' } },
   })
   assert.deepEqual(ctx.permissions, [])
+})
+
+test('a failing history sync says so once per outage, not on every reconnect', async () => {
+  const ctx = setup()
+  ctx.engine.history = async () => { throw new Error('fetch failed') }
+  ctx.room().chatRoom = { id: 'chat-1', sessionRef: 'thread-1' }
+  const room = { ...ctx.room() }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  const onState = ctx.subscribed[0].onState
+  onState({ connected: true })
+  await new Promise(resolve => setTimeout(resolve, 10))
+  onState({ connected: true })
+  await new Promise(resolve => setTimeout(resolve, 10))
+  const notices = ctx.messages.filter(message => message.text === '聊天记录没能对上；待处理。')
+  assert.equal(notices.length, 1)
+  // 恢复了再坏一次，是新的一次故障，值得再说一句。
+  ctx.engine.history = async () => ({ messages: [] })
+  onState({ connected: true })
+  await new Promise(resolve => setTimeout(resolve, 10))
+  ctx.engine.history = async () => { throw new Error('fetch failed') }
+  onState({ connected: true })
+  await new Promise(resolve => setTimeout(resolve, 10))
+  assert.equal(ctx.messages.filter(message => message.text === '聊天记录没能对上；待处理。').length, 2)
 })

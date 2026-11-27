@@ -13,16 +13,22 @@ import {
   updateAssignment,
 } from '../../../assignments.js'
 import { dispatchOf } from '../../../assignment-projections.js'
+import { captureWorkerResult } from './worker-result.js'
 import { leadMemberOf, memberOf } from '../../../room-members.js'
-import { deliverableStageIndex, isWorkStage, memberForRef } from '../turn-utils.js'
-import { vcsOf, workspaceOf } from '../workspace.js'
+import { deliverableStageIndex, isWorkStage, memberForRef } from './turn-utils.js'
+import { vcsOf, workspaceOf } from './workspace.js'
 import { systemNotice } from '../../../notices.js'
+import { handlePlannerTurn } from './planner-turn.js'
 import { INTERNAL_PROMPT_MARKER } from '../../../internal-prompts.js'
-import { hasLaterWorkStage } from '../review-policy.js'
-import { cancelAssignmentLease } from '../assignment-lease.js'
+import { hasLaterWorkStage } from '../acceptance/review-policy.js'
+import { cancelAssignmentLease } from '../plan/assignment-lease.js'
 import { redactSecrets } from '../../../../../shared/secrets.js'
 import { guardTurn, unreturnedReadOnlyViolations } from '../../../workspace-guard.js'
-import { foreignReadsOf } from '../read-boundary.js'
+import { foreignReadsOf } from '../acceptance/read-boundary.js'
+import { parkPackageProof } from '../delivery/proof-assembly.js'
+import { enforceWriteBoundary } from './result.js'
+import { ownsProofFileFor } from '../delivery/write-boundary.js'
+import { packageProofFile } from '../../../../../shared/proof.js'
 
 export const createTurnCapture = ({
   store,
@@ -45,7 +51,7 @@ export const createTurnCapture = ({
   sendToMember = null,
   planNudges = null,
 }) => {
-  const captureTurn = (turn, authorRef) => {
+  const captureTurn = async (turn, authorRef) => {
     const turnId = turn?.turnId
     if (typeof turnId !== 'string' || state.capturedTurns.has(turnId)) return
     const room = store.readRoom(roomId)
@@ -62,7 +68,10 @@ export const createTurnCapture = ({
     const memberId = memberForRef(room, authorRef)
     // 成员的 shell 不做 OS 沙箱；这里在回合后对账，越界写到别人工作树的改动退回。
     if (memberId !== null) {
-      const violations = guardTurn(room, memberId)
+      // 并行派发时别人的副本本来就在变：跨人对账会把队友的工作算成越界，只看说话人自己的树。
+      const guardStage = room === null ? -1 : deliverableStageIndex(room)
+      const guardingParallel = guardStage >= 0 && (dispatchOf(store, roomId, guardStage)?.workers?.length ?? 0) > 1
+      const violations = guardTurn(room, memberId, { others: !guardingParallel })
       for (const violation of violations) {
         store.appendMessage(roomId, {
           kind: 'system',
@@ -98,7 +107,7 @@ export const createTurnCapture = ({
         const stageIndex = active < 0 ? 0 : active
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `${memberDisplayName(room, memberId)} 读了别人的工作副本：${foreign.slice(0, 3).map(item => `${item.path}（${item.root}）`).join('、')}；这一轮先停下，等人处理。`,
+          text: `${memberDisplayName(room, memberId)} 读了别人的工作副本：${foreign.slice(0, 3).map(item => `${item.path}（${item.root}）`).join('、')}；这一回合不算数，继续用其余人的结果。`,
         })
         const updated = store.updateRound(roomId, current => {
           if (current.blocked?.reason === 'read-boundary') return null
@@ -117,195 +126,18 @@ export const createTurnCapture = ({
     const role = memberOf(room, memberId)?.role
     const calls = state.turns.get(turnId) ?? []
     const leadTurn = role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id
-    // 控制动作先于一切：停下、接回、退回的回合不再走自动确认和派活。
-    if (leadTurn) {
-      // 用户的意思是接着做：把停下的一轮接回来；之后的继续由服务层再叫醒一次。
-      const resume = resumeRequestOf(calls)
-      if (resume !== null && typeof resumeRound === 'function') {
-        const result = resumeRound(roomId, resume)
-        if (result?.ok === true) {
-          store.appendEvent(roomId, 'planner.resume', { roundId: result.body?.round?.id ?? null })
-          emit?.('room', store.readRoom(roomId) ?? room)
-          state.capturedTurns.add(turnId)
-          state.recordTurn(true)
-          return
-        }
-        systemNotice({ store, roomId, text: `继续没成功：${result?.error ?? '再试一次'}` })
-      }
-      // 规划师的 stop_round 只是建议：系统在安全点停，进行中的回合不打断。
-      const stop = stopRequestOf(calls)
-      if (stop !== null && typeof adviseStop === 'function') {
-        const advice = adviseStop(stop)
-        if (advice?.deferred === true) {
-          store.appendEvent(roomId, 'planner.stop_deferred', { reason: stop.reason })
-        }
-        state.capturedTurns.add(turnId)
-        state.recordTurn(true)
-        return
-      }
-      const request = rewindRequestOf(calls)
-      if (request !== null && typeof rewindStage === 'function') {
-        const result = rewindStage(roomId, request)
-        if (result?.ok === true) {
-          store.appendEvent(roomId, 'planner.rewind', { stage: request.stage, note: request.note })
-          emit?.('room', store.readRoom(roomId) ?? room)
-          state.capturedTurns.add(turnId)
-          state.recordTurn(true)
-          return
-        }
-        systemNotice({ store, roomId, text: `退回没成功：${result?.error ?? '再试一次'}` })
-      }
-    }
-    // 轮次已经不在跑（停下或终态）：迟到的成员回合只记下来，不写证据、不推进。
-    if (!roundOpen) {
-      state.capturedTurns.add(turnId)
-      state.turns.delete(turnId)
-      state.recordTurn(false)
-      return
-    }
-    // 规划师交了方案和队伍：平台校验并开通成员，然后由它接上第一步。
-    if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
-      const proposal = submitPlanOf(calls)
-      if (proposal !== null && typeof applyPlan === 'function') {
-        state.capturedTurns.add(turnId)
-        state.recordTurn(true)
-        void Promise.resolve(applyPlan(roomId, proposal)).catch(error => {
-          systemNotice({ store, roomId, text: '组队没能开始；待处理。', error })
-        })
-        return
-      }
-    }
-    if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
-      const modelChange = modelAdjustmentOf(calls)
-      if (modelChange !== null && typeof adjustModel === 'function') {
-        state.capturedTurns.add(turnId)
-        state.recordTurn(true)
-        void Promise.resolve(adjustModel(roomId, modelChange)).catch(error => {
-          systemNotice({ store, roomId, text: '换模型没成功；待处理。', error })
-        })
-        return
-      }
-    }
-    // 规划师遇到真正的分叉：存一张决策卡，暂停派活，等用户选。
-    if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
-      const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
-      const ask = askDecisionOf(calls, {
-        id: `decision-${turnId}`,
-        roomId,
-        roundId: room.activeRoundId ?? null,
-        stage: activeIndex >= 0 ? activeIndex : null,
-        at: Number.isFinite(turn?.at) ? turn.at : Date.now(),
+    // 规划师这一侧的房间动作都在 planner-turn.js：处理掉就结束这个回合。
+    if (role === 'lead' || leadTurn) {
+      const handled = await handlePlannerTurn({
+        store, roomId, emit, state, room, memberId, turn, turnId, calls, role, leadTurn,
+        leadId: leadMemberOf(room)?.id ?? null,
+        sendToMember, planNudges, resumeRound, adviseStop, rewindStage, applyPlan, adjustModel,
+        setMembers, confirmStage, roundOpen,
       })
-      if (ask !== null) {
-        state.capturedTurns.add(turnId)
-        if (room.pendingDecision?.status !== 'open') {
-          // 等用户拍板时基座群聊里只留规划师；被移出的人连 @ 都收不到。
-          // 对齐开局已经只留规划师，不再重复改名单，免得撞上基座正在跑回合。
-          const first = room.stages?.[0]
-          const alreadyAlone = first?.title === '目标对齐' && first.state !== STAGE_STATE.passed
-          if (!alreadyAlone && typeof setMembers === 'function') void setMembers(roomId, [memberId])
-          const updated = store.updateRound(roomId, current => {
-            current.pendingDecision = ask
-            return { events: [{ type: 'decision.asked', payload: { id: ask.id, stage: ask.stage, question: ask.question } }] }
-          })
-          if (updated !== null) emit?.('room', updated)
-        }
-        return
-      }
-      // 只是缺事实：记一个问题，暂停派活，等用户在下面回答。
-      const question = askQuestionOf(calls, { at: Number.isFinite(turn?.at) ? turn.at : Date.now() })
-      if (question !== null) {
-        state.capturedTurns.add(turnId)
-        const open = typeof room.openQuestion === 'string' && room.openQuestion.trim() !== ''
-        if (!open && room.pendingDecision?.status !== 'open') {
-          const updated = store.updateRound(roomId, current => {
-            current.openQuestion = question.text
-            return { events: [{ type: 'question.asked', payload: { text: question.text } }] }
-          })
-          if (updated !== null) emit?.('room', updated)
-        }
-        return
-      }
-    }
-    // 启动态只有规划师：没有 submit_plan 就没人开工。先私下催一次，第二次收口给人。
-    if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
-      const bootstrap = !(room.members ?? []).some(member => (
-        member.roleKind === 'executor' || member.role === 'worker'
-      ))
-      const waiting = (room.openQuestion !== null && room.openQuestion !== undefined && room.openQuestion !== '') ||
-        room.pendingDecision?.status === 'open'
-      if (bootstrap && room.workRound?.plan == null && !waiting) {
-        const key = `plan:${room.activeRoundId ?? ''}`
-        state.capturedTurns.add(turnId)
-        state.recordTurn(true)
-        if (planNudges !== null && planNudges.has(key)) {
-          store.appendMessage(roomId, {
-            kind: 'system',
-            text: '规划师还没有提交队伍；这一轮先停在这里。回一句“继续”再试一次。',
-          })
-          return
-        }
-        planNudges?.add(key)
-        if (typeof sendToMember === 'function') {
-          void sendToMember(memberId, [
-            '你这一回合没有提交方案和队伍。现在只做一件事：调用 lodge_gate_submit_plan 提交阶段、工作包（含 clauseIds）、执行官和验收员；',
-            '不要继续分析，不要再问用户。工具确实不可用时只回复一行“组队失败”和原因。',
-            INTERNAL_PROMPT_MARKER,
-          ].join('\n'), {
-            intent: 'align',
-            from: '组队流程',
-            sendId: `plan-${turnId}`,
-          }).catch(error => {
-            systemNotice({ store, roomId, text: '没能再叫规划师提交队伍；待处理。', error })
-          })
-          return
-        }
-        store.appendMessage(roomId, { kind: 'system', text: '规划师没有提交队伍；待处理。' })
-        return
-      }
-    }
-    // 规划师把目标对齐说清楚、又没有留下问题时，对齐这一步自动通过；
-    // 这一步没有界面动作，等人只会让零准备开工停在第一屏。
-    const alignIndex = room === null ? -1 : room.stages.findIndex(stage => stage.state === STAGE_STATE.active)
-    const alignStage = alignIndex >= 0 ? room.stages[alignIndex] : null
-    if (
-      alignStage?.kind === 'decision' &&
-      alignStage?.spine === true &&
-      alignStage?.title === '目标对齐' &&
-      memberId !== null &&
-      memberId === leadMemberOf(room)?.id &&
-      // 停下的一轮不再自动确认阶段；只有开着的轮次才往前走。
-      OPEN_ROUND_STATUSES.has(room?.workRound?.status ?? 'active') &&
-      String(turn?.reply ?? '').trim() !== '' &&
-      (room.openQuestion === null || room.openQuestion === undefined || room.openQuestion === '') &&
-      // 启动态还没有执行官：对齐由 submit_plan 推进，不在这里自动过。
-      (room.members ?? []).some(member => member.roleKind === 'executor' || member.role === 'worker') &&
-      typeof confirmStage === 'function'
-    ) {
-      void Promise.resolve(confirmStage(roomId, alignIndex)).catch(() => {})
+      if (handled === true) return
     }
     const stageIndex = room === null ? 0 : deliverableStageIndex(room)
     const dispatch = room === null ? null : dispatchOf(store, roomId, stageIndex)
-    // 验收已通过、规划师也收过尾：系统收口，不再等人点一次确认。
-    const signoffMessages = store.readMessages(roomId)
-    const signoffFloor = reworkFloor(signoffMessages, stageIndex)
-    const signoffVerdict = [...signoffMessages].reverse()
-      .find(message => (
-        message.kind === 'verdict' &&
-        (message.meta?.stage ?? 0) === stageIndex &&
-        (message.seq ?? 0) > signoffFloor
-      ))
-    if (
-      memberId !== null &&
-      memberId === leadMemberOf(room)?.id &&
-      room?.stages?.[stageIndex]?.state === STAGE_STATE.active &&
-      signoffVerdict !== undefined &&
-      verdictPassed(signoffVerdict) &&
-      !hasLaterWorkStage(room, stageIndex) &&
-      typeof confirmStage === 'function'
-    ) {
-      void Promise.resolve(confirmStage(roomId, stageIndex, { by: 'system' })).catch(() => {})
-    }
     // 旧尝试的回合可能在新一次派发之后才回来；开始时间早于当前交接就丢弃，别污染新结果。
     const startedAt = Number.isFinite(turn?.at) && Number.isFinite(turn?.durationMs)
       ? turn.at - turn.durationMs
@@ -387,6 +219,50 @@ export const createTurnCapture = ({
       return
     }
 
+    // 被停下或失败的回合不是交付结果：文末那句“已停下”不能当成结果送去复核。
+    // 终态来自基座的 digest（唯一真相），房间只按它分路。
+    const stopReason = typeof turn.stopReason === 'string' ? turn.stopReason : ''
+    if (stopReason !== '' && stopReason !== 'completed') {
+      state.capturedTurns.add(turnId)
+      state.turns.delete(turnId)
+      writeTurn('stopped', { stopReason })
+      store.appendEvent(roomId, 'turn.stopped', { turnId, memberId, stage: stageIndex, stopReason })
+      if (assignment !== null && ['created', 'sent', 'working'].includes(assignment.status)) {
+        transitionAssignment(store, assignment.id, 'failed', {
+          resultText: stopReason === 'stopped' ? '回合被停下' : '回合没有跑完',
+        })
+        cancelAssignmentLease({ store, roomId, assignmentId: assignment.id })
+        const done = integrator.settle(memberId, turnId, true)
+        if (done !== null) {
+          const remaining = done.workers.filter(worker => !done.failed.includes(worker))
+          if (remaining.length === 0) {
+            systemNotice({ store, roomId, text: '这一步没有交回结果；待处理。' })
+            // 被停下也要给出去处：和“没有产出”一样把这一步标成卡住，
+            // 房间才会亮出「退回重做」的卡，而不是留一句待处理让人干等。
+            for (const item of activeDispatch(store, roomId, done.stageIndex)) {
+              updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), stalled: true } })
+            }
+            emit?.('room', store.readRoom(roomId))
+          } else {
+            void integrator.enqueue(() => integrator.integrate({ ...done, workers: remaining, turnId }))
+          }
+        }
+      }
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `${memberDisplayName(room, memberId)} 这一回合没有跑完（${stopReason === 'stopped' ? '被停下' : stopReason}）；这一步还没有交回。`,
+        // 重启后基座会重放这一回合；带上 turnId，seed 认得它已经处理过。
+        meta: { kind: 'turn_stopped', turnId },
+      })
+      // 验收员没跑完：这一拍复核当场作废，不让房间空等下一次超时。
+      review.fail?.({
+        memberId,
+        reason: `${memberDisplayName(room, memberId)} 这一回合没有跑完（${stopReason === 'stopped' ? '被停下' : stopReason}）；这一轮仍未通过。`,
+      })
+      emit?.('room', store.readRoom(roomId))
+      state.recordTurn(false)
+      return
+    }
     if ((turn.toolCalls ?? 0) === 0 && (turn.reply ?? '') === '') {
       writeTurn('empty')
       if (pendingForMember) {
@@ -418,7 +294,7 @@ export const createTurnCapture = ({
     state.capturedTurns.add(turnId)
     state.turns.delete(turnId)
 
-    if (review.consume({ turn, memberId, turnId, room, calls })) {
+    if (await review.consume({ turn, memberId, turnId, room, calls })) {
       writeTurn('review')
       state.recordTurn(true)
       return
@@ -437,170 +313,11 @@ export const createTurnCapture = ({
       return
     }
 
-    const stage = stageIndex
-
-    // 同一个回合可能同时从群聊和成员自己的线程各重放一次，turnId 不同但内容相同；
-    // 同一步同一位成员在两分钟内说过完全相同的话，只留第一条证据。
-    const replyText = String(turn.reply ?? '').trim()
-    const duplicated = replyText !== '' && memberId !== null && store.readMessages(roomId).some(message => (
-      message.kind === 'evidence' &&
-      message.authorId === memberId &&
-      (message.meta?.stage ?? 0) === stage &&
-      String(message.text ?? '').trim() === replyText &&
-      typeof message.ts === 'number' &&
-      Math.abs(Date.now() - message.ts) <= 120_000
-    ))
-    if (duplicated) {
-      state.capturedTurns.add(turnId)
-      writeTurn('duplicate')
-      return
-    }
-
-    // 成员交回第一个新的证据回合就算有进展：停掉成员自己的计时，后面的长回合交给阶段截止兜底。
-    if (assignment !== null && ['sent', 'working'].includes(assignment.status)) {
-      cancelAssignmentLease({ store, roomId, assignmentId: assignment.id })
-    }
-
-    const artifacts = []
-    for (const call of calls) {
-      let input
-      try {
-        input = JSON.parse(call.input ?? '{}')
-      } catch {
-        continue
-      }
-      const filePath = input.file_path
-      if (typeof filePath !== 'string' || !files.exists(filePath)) continue
-      if (artifacts.some(item => item.path === filePath)) continue
-      const content = files.read(filePath)
-      artifacts.push({
-        path: filePath,
-        bytes: content.length,
-        sha256: createHash('sha256').update(content).digest('hex'),
-        content: content.length > 16_384
-          ? `${content.subarray(0, 16_384).toString('utf8')}\n…`
-          : content.toString('utf8'),
-      })
-    }
-
-    const worked = (turn.toolCalls ?? 0) > 0 || artifacts.length > 0
-    const toolSummary = (turn.tools ?? []).map(tool => `${tool.name} ×${tool.count}${tool.failed ? ` (${tool.failed} 失败)` : ''}`)
-    const summary = [
-      toolSummary.length > 0 ? `工具：${toolSummary.join(' · ')}` : '工具：无',
-      `回合：${((turn.durationMs ?? 0) / 1000).toFixed(1)}s`,
-    ].join(' · ')
-    const evidence = {
-      kind: 'evidence',
-      authorId: memberId ?? 'worker',
-      ts: Date.now(),
-      text: redactSecrets(turn.reply || summary),
-      meta: {
-        kind: 'turn',
-        vcs: vcsOf(room),
-        stage,
-        turnId,
-        summary,
-        durationMs: turn.durationMs,
-        files: artifacts.map(item => item.path.split('/').at(-1)),
-        artifacts,
-        output: redactSecrets(JSON.stringify({
-          tools: turn.tools ?? [],
-          toolCalls: turn.toolCalls,
-          hookCoverage: turn.hookCoverage,
-        }, null, 2)),
-        capturedAt: new Date().toISOString(),
-      },
-    }
-
-    if (parallel) {
-      void integrator.enqueue(async () => {
-        const current = store.readRoom(roomId)
-        if (current === null) return
-        const worktree = current.worktrees?.[memberId]
-        let candidate = null
-        if (worktree !== undefined && workspaceOf(current).capabilities().candidate === true) {
-          try {
-            candidate = workspaceOf(current).submit({ path: worktree, turnId, name: current.name })
-            if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, memberId, commit: candidate })
-          } catch (error) {
-            systemNotice({ store, roomId, text: '这一步没法准备检查；结果由你确认。', error })
-          }
-        }
-        const base = dispatch?.stage === stage && typeof dispatch.base === 'string'
-          ? dispatch.base
-          : workspaceOf(current).head({ path: current.repoPath })
-        const range = worktree === undefined
-          ? { diff: '', files: [] }
-          : await workspaceOf(current).rangeChanges({ path: worktree, base })
-        const head = worktree === undefined ? '' : workspaceOf(current).head({ path: worktree })
-        const stored = store.appendMessage(roomId, {
-          ...evidence,
-          meta: {
-            ...evidence.meta,
-            repoPath: worktree ?? '',
-            branch: current.branches?.[memberId] ?? '',
-            head,
-            diff: redactSecrets(range.diff),
-            manifest: range.manifest ?? [],
-            changedFiles: range.files,
-            candidate,
-          },
-        })
-        if (assignment !== null) {
-          transitionAssignment(store, assignment.id, 'reported', { turnId, evidenceIds: [stored.id], ...(candidate === null ? {} : { candidate }) })
-          cancelAssignmentLease({ store, roomId, assignmentId: assignment.id })
-        }
-        writeTurn('evidence', {
-          evidenceIds: [stored.id],
-          assignmentId: assignment?.id ?? null,
-          candidate,
-        })
-        store.appendEvent(roomId, 'turn.evidence', { stage, turnId, memberId })
-        state.recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
-
-        const done = integrator.settle(memberId, turnId, false)
-        if (done !== null) {
-          const remaining = done.workers.filter(worker => !done.failed.includes(worker))
-          if (remaining.length === 0) {
-            systemNotice({ store, roomId, text: '这一步没有可合并的结果；待处理。' })
-          } else {
-            await integrator.integrate({ ...done, workers: remaining, turnId })
-          }
-          return
-        }
-        if (pendingForMember) return
-        if (dispatch !== null && dispatch !== undefined && dispatch.stage !== stage) return
-        const active = current.stages[stage]
-        if (active === undefined || !isWorkStage(active) || active.state !== STAGE_STATE.active) return
-        if (review.isBusy()) return
-        const latest = [...store.readMessages(roomId)].reverse()
-          .find(message => message.kind === 'verdict' && message.meta?.stage === stage)
-        if (latest !== undefined && verdictPassed(latest)) return
-        await integrator.integrate({ stageIndex: stage, workers: [memberId], base: workspaceOf(current).head({ path: current.repoPath }), turnId })
-      })
-      return
-    }
-
-    const storedEvidence = store.appendMessage(roomId, evidence)
-    if (assignment !== null) {
-      transitionAssignment(store, assignment.id, 'reported', { turnId, evidenceIds: [storedEvidence.id] })
-      cancelAssignmentLease({ store, roomId, assignmentId: assignment.id })
-      writeTurn('evidence', {
-        evidenceIds: [storedEvidence.id],
-        assignmentId: assignment.id,
-      })
-    }
-    store.appendEvent(roomId, 'turn.evidence', { stage, turnId })
-    state.recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
-
-    if (room !== null) {
-      const target = room.stages[stage]
-      const key = `${stage}:${turnId}`
-      if (target?.kind === 'deliverable' && target.state === STAGE_STATE.active && !state.resultRuns.has(key)) {
-        state.resultRuns.add(key)
-        void markResultReady(room, stage, turnId, worked, turn?.reply ?? '', memberId ?? '')
-      }
-    }
+    await captureWorkerResult({
+      store, roomId, emit, files, state, integrator, review, markResultReady,
+      room, memberId, turn, turnId, calls, stageIndex, dispatch, parallel,
+      assignment, pendingForMember, writeTurn,
+    })
   }
 
   return captureTurn

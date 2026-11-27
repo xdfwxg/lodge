@@ -13,7 +13,9 @@ const env = {
   LODGE_GATE_SPOOL: join(root, 'gate-spool'),
 }
 
-const result = spawnSync(process.execPath, ['--test', ...NODE_TEST_GLOBS], { stdio: 'inherit', env })
+// 测试进程里的命令执行端口指向本地 exec（生产由组合根指向基座）。
+const preload = new URL('./test-runner.mjs', import.meta.url).href
+const result = spawnSync(process.execPath, ['--import', preload, '--test', ...NODE_TEST_GLOBS], { stdio: 'inherit', env })
 
 rmSync(root, { recursive: true, force: true })
 process.exit(result.status ?? 1)

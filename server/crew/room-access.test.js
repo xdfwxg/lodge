@@ -8,7 +8,7 @@ import {
   stripBrowser,
 } from './room-access.js'
 
-const grant = { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }
+const grant = { server: 'chrome-devtools', approval: 'ask' }
 const member = (over = {}) => ({ id: 'member', role: 'worker', mcp: [], ...over })
 
 test('every member gets the same read-only browser grant, once', () => {

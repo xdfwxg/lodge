@@ -40,6 +40,25 @@ export const RUNTIME_METHODS = Object.freeze(
   Object.values(RUNTIME_METHOD_GROUPS).flat(),
 )
 
+// 房型引擎会调这些 live 方法（聊天室开一轮、工作室派活/复核、把话送给成员）。
+// 它们以前只活在实现里：换个组合（样例房、测试替身）就在运行时炸成一条“服务错误”。
+// 现在声明出来，组合根启动时一次问清。
+export const LIVE_METHODS = Object.freeze([
+  'attach', 'isAttached', 'send', 'sendToMember',
+  'startChat', 'continueChat', 'startStage', 'reworkStage', 'retryMember',
+  'busyReview', 'reviewChatConclusion', 'hostIntent',
+])
+
+export const assertLivePort = live => {
+  if (live === null || typeof live !== 'object') {
+    throw new Error('房间运行时必须是一个对象')
+  }
+  const missing = LIVE_METHODS.filter(name => typeof live[name] !== 'function')
+  if (missing.length > 0) {
+    throw new Error(`房间运行时缺少方法：${missing.join('、')}`)
+  }
+}
+
 // 组合根调用一次：适配器缺方法就启动失败，而不是等业务跑到一半才报错。
 export const assertRuntimePort = runtime => {
   if (runtime === null || typeof runtime !== 'object') {

@@ -63,10 +63,10 @@
 
 ### 源码运行
 
-需要 Node 24+、git、一个已登录的 agent CLI，以及本机运行的 OpenMausBot 基座（独立仓库 `crew-chat-base`，默认端口 8799）。
+需要 Node 24+、Rust 工具链、git，以及一个已登录的 agent CLI。基座是本仓库的 `base-rs/`，一条命令起在 8799：
 
 ```bash
-npm install
+npm install && npm run base:rs:serve
 CREW_BASE_URL=http://127.0.0.1:8799 npm run dev
 ```
 
@@ -85,4 +85,4 @@ npm run eval:rooms     # 真实房间评测（需要 Lodge 8787 和基座 8799�
 
 ## 许可与归属
 
-产品代码 MIT；基座复用 OpenMausBot OSS 的 runtime、drivers 与 Electron 壳（Apache-2.0）；Pi 为 MIT。第三方 notices 随包。产品名、品牌和产品面全部属于 Lodge。
+产品代码 MIT；基座是本仓库的 Rust 实现（`base-rs/`），沙箱规则改写自 OpenMausBot OSS 的 bot-box（Apache-2.0，归属与许可证随包）；Pi 为 MIT。第三方 notices 随包。产品名、品牌和产品面全部属于 Lodge。

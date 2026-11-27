@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline'
 import { normalizeAskDecision } from '../../../shared/decision.js'
+import { normalizeCrewProposal } from '../../../shared/crew-proposal.js'
 import { writeGateSubmission } from './spool.js'
 
 // 房间内置的判定工具：只接结构化字段，不碰文件、网络或外部服务。
@@ -377,6 +378,10 @@ const callTool = (id, params) => {
     if (!Array.isArray(crew?.verifiers) || crew.verifiers.length === 0 || crew.verifiers.some(item => item === null || typeof item !== 'object')) {
       return toolFailure(id, '缺少 crew.verifiers：至少写一位验收员；默认一位，最多三位。')
     }
+    // 纯形状与契约校验当场拒绝：规划师在同一个回合里就能改，不用等平台回头再说。
+    // 模型、厂商和“目标点名的文件有没有落进包”要看房间和引擎，仍由平台异步校验。
+    const normalized = normalizeCrewProposal(args)
+    if (normalized.error !== undefined) return toolFailure(id, normalized.error)
     return toolOk(id, '方案和队伍已提交，等平台校验。', { ok: true, kind: 'plan' })
   }
   const reason = String(args.reason ?? args.note ?? '').trim()

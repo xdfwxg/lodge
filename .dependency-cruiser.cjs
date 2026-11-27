@@ -11,9 +11,10 @@ module.exports = {
     {
       name: 'no-unresolved',
       severity: 'error',
-      comment: '相对导入必须能解析；解析不了说明路径或扩展名错了。',
+      // typebox 由 pi 在运行时映射给扩展，这里解析不到是正常的。
+      comment: '相对导入必须能解析；解析不了说明路径或扩展名错了（typebox 由 pi 运行时提供）。',
       from: {},
-      to: { couldNotResolve: true },
+      to: { couldNotResolve: true, pathNot: '^typebox$' },
     },
     {
       name: 'ui-not-to-server',
@@ -37,6 +38,55 @@ module.exports = {
       to: { path: '^(server|ui)/' },
     },
     {
+      name: 'crew-not-to-transport',
+      severity: 'error',
+      comment: '业务与内核不认识 HTTP：传输层只把请求翻译成用例调用，业务不 import http/app/index。',
+      from: { path: '^server/crew/', pathNot: '\\.test\\.js$' },
+      to: { path: '^server/(http|http-guard|route-table|app|index|listener-watch|listener-report)\\.js$' },
+    },
+    {
+      name: 'ui-not-to-node',
+      severity: 'error',
+      comment: '界面只跑在浏览器里：不 import node 内置模块，靠 shared 和 HTTP 拿数据。',
+      from: { path: '^ui/src/', pathNot: '\\.test\\.js$' },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
+      name: 'shared-not-to-node',
+      severity: 'error',
+      comment: '共享层是纯契约：不碰文件、网络和进程，界面和服务端都能直接 import。',
+      from: { path: '^shared/', pathNot: '\\.test\\.js$' },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
+      name: 'shell-not-to-server-modules',
+      severity: 'error',
+      comment: '桌面壳只负责拉起子进程和窗口；对服务的判定走外部探活，不 import 服务端模块。',
+      from: { path: '^electron/', pathNot: '\\.test\\.js$' },
+      to: { path: '^(server|ui)/' },
+    },
+    {
+      name: 'crew-not-to-base-adapter',
+      severity: 'error',
+      comment: '业务只经端口认识运行时；基座客户端和归一化层是适配器，只有组合根能碰。',
+      from: { path: '^server/crew/', pathNot: '\\.test\\.js$' },
+      to: { path: '^server/(base|engine)\\.js$' },
+    },
+    {
+      name: 'kernel-only-through-kinds',
+      severity: 'error',
+      comment: '内核只通过 rooms/kinds.js 的窄接口认识房型；具体房型目录只在组合点和房型自己的模块里出现。',
+      from: { path: '^server/crew/kernel/', pathNot: '\\.test\\.js$' },
+      to: { path: '^server/crew/rooms/', pathNot: 'kinds\\.js$' },
+    },
+    {
+      name: 'ui-not-to-electron',
+      severity: 'error',
+      comment: '界面跑在渲染进程，不 import 桌面壳模块；壳的能力只通过 HTTP/预加载桥提供。',
+      from: { path: '^ui/src/', pathNot: '\\.test\\.js$' },
+      to: { path: '^electron/' },
+    },
+    {
       name: 'kernel-not-to-room-engines',
       severity: 'error',
       comment: '内核只通过 rooms/kinds.js 或 facade 找房型，不直接 import 具体引擎。',
@@ -44,11 +94,11 @@ module.exports = {
       to: { path: '^server/crew/rooms/(chat|studio)/' },
     },
     {
-      name: 'rooms-not-to-base-adapters',
+      name: 'rooms-not-to-live-adapter',
       severity: 'error',
-      comment: '房型只依赖 ports/threads，不直接 import rooms/base 的适配器。',
+      comment: '房型只依赖 ports/threads，不直接 import rooms/live 的适配器。',
       from: { path: '^server/crew/rooms/(chat|studio)/', pathNot: '\\.test\\.js$' },
-      to: { path: '^server/crew/rooms/base/' },
+      to: { path: '^server/crew/rooms/live/' },
     },
     {
       name: 'chat-not-to-studio',

@@ -9,6 +9,8 @@ on:
 permissions:
   contents: write
 
+# 只发 macOS：基座是我们自己的 Rust 可执行文件，按本机目标架构构建后随包放进 Resources/base-rs。
+# Windows / Linux 的基座尚未验证，发布面暂时不包含它们。
 jobs:
   mac:
     runs-on: macos-14
@@ -20,20 +22,10 @@ jobs:
           node-version: 24
           cache: npm
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
-
-      # 基座是独立仓库；发布包内置它的 dist-server，用户不需要再装仓库或系统 Node。
-      - uses: actions/checkout@v4
-        with:
-          repository: milind-soni/OpenMausBot
-          ref: v0.1.161
-          path: base-src
+      - uses: dtolnay/rust-toolchain@stable
 
       - run: npm ci
-      - run: cd base-src && pnpm install --frozen-lockfile && pnpm build:server
-      - run: LODGE_BASE_DIST=base-src/dist-server npm run prepare:base
+      - run: npm run prepare:base
       - run: npm run prepare:runtimes
       - run: npm test
       - run: npm run check:docs
@@ -49,7 +41,8 @@ jobs:
           app="release/mac-arm64/Lodge.app"
           test -f "$app/Contents/Resources/app/server/index.js"
           test -f "$app/Contents/Resources/app/ui/dist/index.html"
-          test -f "$app/Contents/Resources/base/dist-server/openmausbot.js"
+          test -x "$app/Contents/Resources/base-rs/lodge-base-slice"
+          file "$app/Contents/Resources/base-rs/lodge-base-slice" | grep -q 'arm64'
           test -f "$app/Contents/Resources/runtimes/pi/pi"
           file "$app/Contents/Resources/runtimes/pi/pi" | grep -q 'arm64'
           test -f "$app/Contents/Resources/licenses/third_party/OpenMausBot-LICENSE.txt"
@@ -84,62 +77,3 @@ jobs:
             release/Lodge-*.zip
             release/SHA256SUMS.txt
           generate_release_notes: true
-
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
-      - uses: actions/checkout@v4
-        with:
-          repository: milind-soni/OpenMausBot
-          ref: v0.1.161
-          path: base-src
-      - run: npm ci
-      - run: cd base-src; pnpm install --frozen-lockfile; pnpm build:server
-      - run: $env:LODGE_BASE_DIST = 'base-src/dist-server'; npm run prepare:base
-      - run: npm run prepare:runtimes
-      - run: npm run build
-      - run: npm run test:ui
-      - run: npx electron-builder --win --x64 --publish never
-      - run: node scripts/smoke-package.mjs --app release/win-unpacked --platform win32
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows
-          path: release/*.exe
-
-  linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
-      - uses: actions/checkout@v4
-        with:
-          repository: milind-soni/OpenMausBot
-          ref: v0.1.161
-          path: base-src
-      - run: npm ci
-      - run: cd base-src && pnpm install --frozen-lockfile && pnpm build:server
-      - run: LODGE_BASE_DIST=base-src/dist-server npm run prepare:base
-      - run: npm run prepare:runtimes
-      - run: npm run build
-      - run: npx playwright install-deps chromium
-      - run: npm run test:ui
-      - run: npx electron-builder --linux --x64 --publish never
-      - run: node scripts/smoke-package.mjs --app release/linux-unpacked --platform linux
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux
-          path: release/*.AppImage

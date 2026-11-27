@@ -112,7 +112,7 @@ const SCHEMA_SQL = `
   PRAGMA user_version = ${SCHEMA_VERSION};
 `
 
-export const createStore = ({ dataDir, emit = () => {} }) => {
+export const createStore = ({ dataDir, emit = () => {}, roundGuard = null }) => {
   mkdirSync(dataDir, { recursive: true })
   const fresh = !existsSync(join(dataDir, 'crew.db'))
   const db = new DatabaseSync(join(dataDir, 'crew.db'))
@@ -273,6 +273,30 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   })
   const assignments = createAssignmentStore({ db, readRoom, roundIdForRead })
 
+  // 状态守卫：影子模式只记诊断；strict 模式直接拒绝写坏的状态。
+  const guardState = (roomId, view, before) => {
+    // 示例房是一次性夹具，不是跑出来的房间：它的「状态」是给人看的样例，没有引擎维护，
+    // 也没有结果证据可言。拿真实房间的不变量去判它，只会让新用户第一次打开就遇到坏房。
+    if (roundGuard === null || view.roomType !== 'studio' || view.demo === true) return []
+    const changed = before === null
+      || JSON.stringify(before.stages) !== JSON.stringify(view.stages)
+      || before.status !== view.status
+      || JSON.stringify(before.plan) !== JSON.stringify(view.plan)
+      || JSON.stringify(before.members) !== JSON.stringify(view.members)
+    if (!changed) return []
+    const findings = roundGuard({ room: view, messages: timeline.readMessages(roomId) })
+    const violations = Array.isArray(findings?.violations) ? findings.violations : []
+    const drift = Array.isArray(findings?.drift) ? findings.drift : []
+    if (violations.length === 0 && drift.length === 0) return []
+    // 默认 strict：影子跑过的房间（含浸泡与真实交付）零告警，写坏的状态不该再进来。
+    // 排查时不拦、只看记录：LODGE_STATE_GUARD=shadow。
+    if (process.env.LODGE_STATE_GUARD !== 'shadow') {
+      throw new Error(`状态不变量被破坏：${[...violations, ...drift].join('；')}`)
+    }
+    log.warn(`[state] ${roomId}: ${[...violations, ...drift].join('；')}`)
+    return [{ type: 'state.violation', payload: { violations, drift } }]
+  }
+
   // 房间写入：只认房间自己的字段；轮次字段必须走 updateRound，别再隐式改到旧轮。
   const updateRoom = (id, mutate) => {
     db.exec('BEGIN IMMEDIATE')
@@ -294,12 +318,13 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
           throw new Error(`轮次字段 ${field} 要用 updateRound 写`)
         }
       }
+      const guardEvents = guardState(id, composeRoomView(stored), null)
       const version = Number(row.version) + 1
       stored.version = version
       db.prepare('UPDATE room SET payload = ?, version = ? WHERE id = ? AND version = ?')
         .run(JSON.stringify(stored), version, id, row.version)
       const events = []
-      for (const event of change.events ?? []) events.push(insertEvent(id, event))
+      for (const event of [...(change.events ?? []), ...guardEvents]) events.push(insertEvent(id, event))
       db.exec('COMMIT')
       for (const event of events) mirrorEvent(id, event)
       return composeRoomView(stored)
@@ -327,6 +352,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
         db.exec('ROLLBACK')
         return null
       }
+      const guardEvents = guardState(id, view, before)
 
       if (view.workRound !== undefined) {
         const roundPatch = {}
@@ -356,7 +382,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       db.prepare('UPDATE room SET payload = ?, version = ? WHERE id = ? AND version = ?')
         .run(JSON.stringify(storedRoom), version, id, row.version)
       const events = []
-      for (const event of change.events ?? []) events.push(insertEvent(id, event))
+      for (const event of [...(change.events ?? []), ...guardEvents]) events.push(insertEvent(id, event))
       db.exec('COMMIT')
       for (const event of events) mirrorEvent(id, event)
       return composeRoomView(storedRoom)

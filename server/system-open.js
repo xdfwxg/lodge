@@ -1,7 +1,9 @@
 import { execFile } from 'node:child_process'
-import { statSync } from 'node:fs'
+import { realpathSync, statSync } from 'node:fs'
 import { promisify } from 'node:util'
-import { openablePath } from '../shared/system-policy.js'
+import { openablePath as policyOf } from '../shared/system-policy.js'
+
+const openablePath = target => policyOf(target, { stat: statSync, realpath: realpathSync })
 
 const run = promisify(execFile)
 

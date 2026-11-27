@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use serde_json::json;
 
-use super::{emit_question, prepare_ask, wait_ask, DriverContext};
+use super::{emit_question, prepare_ask, wait_ask, AskOutcome, DriverContext};
 use crate::events::runtime_frame;
 use crate::model::{TurnOutcome, TurnUsage};
 use crate::state::App;
@@ -17,7 +17,7 @@ pub(crate) async fn run(app: Arc<App>, ctx: DriverContext) {
         let tool = if tool.trim().is_empty() { "bash" } else { tool.trim() };
         let request_id = uuid::Uuid::new_v4().to_string();
         let rx = prepare_ask(&app, &request_id);
-        if !emit_question(&app, &ctx, &request_id, tool, &format!("要用 {tool} 吗？"), &[]) {
+        if !emit_question(&app, &ctx, &request_id, tool, &format!("要用 {tool} 吗？"), "", &[]) {
             app.turns.drop_card(&request_id);
             settle(
                 &app.turns,
@@ -32,7 +32,11 @@ pub(crate) async fn run(app: Arc<App>, ctx: DriverContext) {
             );
             return;
         }
-        let Some(decision) = wait_ask(&app, &ctx, &request_id, rx).await else {
+        let decision = match wait_ask(&app, &ctx, &request_id, rx, None).await {
+            AskOutcome::Decision(decision) => Some(decision),
+            AskOutcome::Interrupted | AskOutcome::Exited => None,
+        };
+        let Some(decision) = decision else {
             if !ctx.cancel.is_cancelled() {
                 settle(
                     &app.turns,
@@ -115,6 +119,6 @@ pub(crate) async fn run(app: Arc<App>, ctx: DriverContext) {
         &ctx.turn_id,
         TurnOutcome::Completed,
         &format!("echo: {}", ctx.prompt),
-        &TurnUsage { input: 1, output: 1, cache_read: 0 },
+        &TurnUsage { input: 1, output: 1, cache_read: 0, tool_calls: 0 },
     );
 }

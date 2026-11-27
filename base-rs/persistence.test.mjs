@@ -9,7 +9,7 @@ import { createBaseClient } from '../server/base.js'
 import { createEngine } from '../server/engine.js'
 
 const dir = dirname(fileURLToPath(import.meta.url))
-const bin = process.env.LODGE_BASE_RS_BIN ?? join(dir, 'target', 'debug', 'lodge-base-slice')
+const bin = process.env.LODGE_BASE_RS_BIN ?? join(dir, 'target', 'debug', process.platform === 'win32' ? 'lodge-base-slice.exe' : 'lodge-base-slice')
 const port = 19000 + Math.floor(Math.random() * 500)
 const baseUrl = `http://127.0.0.1:${port}`
 const dataDir = mkdtempSync(join(tmpdir(), 'lodge-base-persist-'))

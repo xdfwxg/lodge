@@ -5,8 +5,8 @@ const LIST_LIMIT = 8
 
 export const normalizeMcpGrants = list => (Array.isArray(list) ? list : []).slice(0, LIST_LIMIT).map(item => (
   typeof item === 'string'
-    ? { server: item.trim(), scopes: ['read'], approval: 'ask' }
-    : { server: item.server, scopes: ['read'], approval: 'ask' }
+    ? { server: item.trim(), approval: 'ask' }
+    : { server: item.server, approval: 'ask' }
 ))
 
 export const normalizeBodySpec = ({ input = {}, fallback = {} } = {}) => {

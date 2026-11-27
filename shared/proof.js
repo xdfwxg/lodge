@@ -1,5 +1,6 @@
-// 交付自带的证明清单：工作区根目录的 lodge-proof.json。
-// 只写“怎么证明”，不写验收结论；执行结果由平台记录。
+// 交付自带的证明：工作区根目录的 lodge-proof.json。
+// 只有一件事——一条能重跑的命令（`entry`）。`steps` 是额外的命令，按顺序跑，
+// 不带 clause 语义：要求有没有被覆盖由验收员的复核说了算，不由这份文件对账。
 export const PROOF_FILE = 'lodge-proof.json'
 // 并行阶段一个工作包一份证明：根目录的 lodge-proof.json 只留给单包阶段。
 export const PROOF_DIR = 'lodge-proof'
@@ -9,28 +10,21 @@ const PROOF_VERSION = 1
 // 所以超长时宁可当“没有证明”，也不执行半条。
 export const PROOF_ENTRY_LIMIT = 2_000
 
-const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 const command = value => {
   const trimmed = typeof value === 'string' ? value.trim() : ''
   return trimmed === '' || trimmed.length > PROOF_ENTRY_LIMIT ? '' : trimmed
 }
 
-const stepOf = item => {
-  if (item === null || typeof item !== 'object') return null
-  const clause = text(item.clause, 40)
-  const run = command(item.run)
-  const expect = text(item.expect, 300)
-  if (run === '') return null
-  return { ...(clause === '' ? {} : { clause }), run, ...(expect === '' ? {} : { expect }) }
-}
+// steps 写成字符串或 `{ run }` 都行；两种都只取命令本身。
+const commandsOf = value => (Array.isArray(value) ? value : [])
+  .map(item => (typeof item === 'string' ? item : item?.run))
+  .map(command)
+  .filter(Boolean)
+  .slice(0, 8)
 
 export const normalizeProof = value => {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
   const entry = command(value.entry)
   if (entry === '') return null
-  return {
-    version: PROOF_VERSION,
-    entry,
-    steps: (Array.isArray(value.steps) ? value.steps : []).map(stepOf).filter(Boolean).slice(0, 6),
-  }
+  return { version: PROOF_VERSION, entry, steps: commandsOf(value.steps) }
 }

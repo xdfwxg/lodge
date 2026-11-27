@@ -212,9 +212,14 @@ export const AUTO_CHECK_REASON = Object.freeze({
   budget: 'budget',
 })
 
+// 「这一步为什么停住」只有这几个理由；每一个的措辞在 server/crew/blocked.js。
+// 读别人的副本不是停因（平台停的是那一位成员，接着用其余人的结果走）。
 export const BLOCKED_REASON = Object.freeze({
-  'no-progress': 'no-progress',
-  'check-failed': 'check-failed',
+  timeout: 'timeout',
+  plan: 'plan',
+  setup: 'setup',
+  boundary: 'boundary',
+  'read-boundary': 'read-boundary',
 })
 
 export const PLANNER_DECISION_KIND = Object.freeze({

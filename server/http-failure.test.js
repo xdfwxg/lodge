@@ -31,7 +31,7 @@ test('a failure before headers still answers as JSON', () => {
   assert.equal(res.calls[1][0], 'end')
 })
 
-test('an events request that fails mid-stream does not take the server down', async () => {
+test('an events request whose backlog cannot be read answers 500 and the server keeps serving', async () => {
   const root = mkdtempSync(join(tmpdir(), 'lodge-http-failure-'))
   mkdirSync(join(root, 'ui', 'dist'), { recursive: true })
   writeFileSync(join(root, 'ui', 'dist', 'index.html'), '<html>ok</html>')
@@ -53,11 +53,12 @@ test('an events request that fails mid-stream does not take the server down', as
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
   const base = `http://127.0.0.1:${server.address().port}`
   try {
+    // 取不到要补的消息就不开流：如实回一个 500，客户端看到错误而不是一条立刻断的流。
     const events = await fetch(`${base}/api/events`).then(
       response => response.text().then(() => response.status),
       () => 'closed',
     )
-    assert.ok(events === 'closed' || events === 200)
+    assert.ok(events === 500 || events === 'closed', `unexpected ${events}`)
     const health = await fetch(`${base}/api/health`)
     assert.equal(health.status, 200)
   } finally {

@@ -10,7 +10,7 @@ const MODE_KEYS = [
   'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
-  'filterMessages', 'hideActivity', 'hiddenMessageOf', 'acceptsDelta', 'needsYou',
+  'filterMessages', 'hideActivity', 'hiddenMessageOf', 'acceptsDelta', 'stopOf',
   'refresh', 'projectWork', 'deliveryOf', 'membersOf',
   'hostOf', 'speakerOf', 'issuesOf', 'retroOf',
 ]

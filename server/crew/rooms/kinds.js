@@ -1,6 +1,6 @@
 import { handoffBriefGoalText } from '../../../shared/handoff-brief.js'
 import { chatKind } from './chat/kind.js'
-import { studioKind } from './studio/kind.js'
+import { studioKind } from './studio/runtime/kind.js'
 
 export const roomKinds = [studioKind, chatKind]
 
@@ -19,7 +19,7 @@ const MODE_KEYS = [
   'initialMessages', 'provisionExtra', 'start', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
-  'filterMessages', 'hideActivity', 'hiddenMessageOf', 'acceptsDelta', 'needsYou',
+  'filterMessages', 'hideActivity', 'hiddenMessageOf', 'acceptsDelta', 'stopOf',
   'refresh', 'projectWork', 'deliveryOf', 'membersOf',
   'hostOf', 'speakerOf', 'issuesOf', 'retroOf',
 ]

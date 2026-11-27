@@ -60,7 +60,7 @@ test('an answered question card stays readable without inputs', () => {
 })
 
 test('a queued human message offers cancel and steer', () => {
-  const room = { seatSpecs: [] }
+  const room = { members: [] }
   const message = {
     id: 'm1',
     ts: 1,

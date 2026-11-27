@@ -1,6 +1,6 @@
 # Lodge
 
-以房间为一等本体的多 Agent 工作间：聊天室负责讨论，工作室负责交付。基座是 OpenMausBot OSS；产品差异层在 `server/crew` 与 `ui`。
+以房间为一等本体的多 Agent 工作间：聊天室负责讨论，工作室负责交付。基座是自己的 Rust 薄基座（`base-rs/`）；产品差异层在 `server/crew` 与 `ui`。
 
 ## 常用命令
 

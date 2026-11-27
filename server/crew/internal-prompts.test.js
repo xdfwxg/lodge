@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { INTERNAL_PROMPT_MARKER, isInternalPrompt } from './internal-prompts.js'
-import { studioWorkerPrompt } from './rooms/studio/prompts.js'
+import { studioWorkerPrompt } from './rooms/studio/runtime/prompts.js'
 
 test('the studio worker handoff is marked internal', () => {
   const prompt = studioWorkerPrompt({
@@ -11,9 +11,11 @@ test('the studio worker handoff is marked internal', () => {
       plan: { done: [] },
       stages: [],
       constraints: [],
-      leadSeat: 'lead',
-      members: ['lead', 'worker'],
-      seatNames: { lead: '规划师', worker: '执行者' },
+      leadMemberId: 'lead',
+      members: [
+        { id: 'lead', name: '规划师', role: 'lead', roleKind: 'planner', body: { kind: 'base' } },
+        { id: 'worker', name: '执行者', role: 'worker', roleKind: 'executor', body: { kind: 'base' } },
+      ],
       gate: { advice: [] },
       repoPath: '/tmp/room',
     },

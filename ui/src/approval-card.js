@@ -8,6 +8,7 @@ const CONSEQUENCE = {
   message: '会发到房间外',
   privilege: '会用更高权限执行',
   network: '会访问外部服务',
+  change: '会改动这间房',
 }
 
 const GATE_NOTE = { review: '请确认一下', deny: '我不建议' }

@@ -4,24 +4,24 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
-import { buildDelivery } from './rooms/studio/delivery.js'
+import { buildDelivery } from './rooms/studio/delivery/delivery.js'
 import { createChatScheduler } from './rooms/chat/scheduler.js'
 import { createChatTransport } from './rooms/chat/transport.js'
 import { createRealRoom } from './rooms/create/create.js'
-import { createRoomCompleter } from './rooms/studio/complete.js'
+import { createRoomCompleter } from './rooms/studio/plan/complete.js'
 import { startRound } from './rounds/start.js'
-import { createServiceStages } from './rooms/studio/service-stages.js'
+import { createServiceStages } from './rooms/studio/plan/service-stages.js'
 import { createStore } from './store.js'
 
 const temp = prefix => mkdtempSync(join(tmpdir(), prefix))
 
 // 固定脚本运行时：不启动 CLI，被 @ 的席位立刻回一条可预测的消息。
-const scriptedEngine = (store, { approvalReview = true, authenticated } = {}) => {
+const scriptedEngine = (store, { approvalReview = true, authenticated, tools } = {}) => {
   const history = []
   let seq = 0
   return {
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
-    instances: async () => [{ id: 'fake', engine: 'fake', available: true, ...(authenticated === undefined ? {} : { authenticated }), capabilities: { approvalReview } }],
+    instances: async () => [{ id: 'fake', engine: 'fake', available: true, ...(authenticated === undefined ? {} : { authenticated }), capabilities: { approvalReview, ...(tools === undefined ? {} : { tools }) } }],
     createMemberBot: async ({ name }) => ({ id: `member-${name}`, name, engine: 'fake', model: 'fake-model' }),
     setBotSkills: async (botId, skills) => ({ assignedSkills: skills }),
     createRoom: async ({ name }) => ({ id: `chat-${name}`, sessionRef: `thread-${name}` }),
@@ -338,6 +338,71 @@ test('a delivery room refuses exec members whose model cannot ask', async () => 
     assert.equal(result.reason, 'invalid')
     assert.match(result.error, /不会逐次确认外部动作/)
     assert.match(result.error, /聊天室/)
+    assert.deepEqual(store.readRooms(), [])
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+    if (previous === undefined) delete process.env.CREW_WORKSPACE_ROOT
+    else process.env.CREW_WORKSPACE_ROOT = previous
+  }
+})
+
+test('a chat member on a tool-less engine is allowed: nothing to approve, nothing to run', async () => {
+  const previous = process.env.CREW_WORKSPACE_ROOT
+  const root = temp('lodge-toolless-workspace-')
+  process.env.CREW_WORKSPACE_ROOT = root
+  const dataDir = temp('lodge-toolless-data-')
+  const store = createStore({ dataDir })
+  const engine = scriptedEngine(store, { approvalReview: false, tools: false })
+  try {
+    const result = await createRealRoom({
+      store,
+      engine,
+      live: fakeLive(),
+      emit: () => {},
+      body: {
+        goal: '只聊不干活',
+        roomType: 'chat',
+        members: [{ role: 'worker', name: '甲', engine: 'fake' }],
+      },
+      ports: createCrewPorts(),
+    })
+    assert.equal(result.ok, true, result.error ?? '')
+    assert.equal(result.body.room.members[0].body.engine, 'fake', 'explicit choice is kept, not silently swapped')
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+    if (previous === undefined) delete process.env.CREW_WORKSPACE_ROOT
+    else process.env.CREW_WORKSPACE_ROOT = previous
+  }
+})
+
+test('a studio executor on a tool-less engine is refused in its own words', async () => {
+  const previous = process.env.CREW_WORKSPACE_ROOT
+  const root = temp('lodge-toolless-studio-workspace-')
+  process.env.CREW_WORKSPACE_ROOT = root
+  const dataDir = temp('lodge-toolless-studio-data-')
+  const store = createStore({ dataDir })
+  const engine = scriptedEngine(store, { approvalReview: false, tools: false })
+  try {
+    const result = await createRealRoom({
+      store,
+      engine,
+      live: fakeLive(),
+      emit: () => {},
+      body: {
+        goal: '写一个文件',
+        roomType: 'studio',
+        verify: 'test',
+        plan: {
+          done: ['文件存在'],
+          stages: [{ title: '写文件', kind: 'deliverable', deliverable: 'A.md 存在' }],
+        },
+      },
+      ports: createCrewPorts(),
+    })
+    assert.equal(result.ok, false)
+    assert.match(result.error, /还不能改文件、跑命令/)
     assert.deepEqual(store.readRooms(), [])
   } finally {
     rmSync(dataDir, { recursive: true, force: true })

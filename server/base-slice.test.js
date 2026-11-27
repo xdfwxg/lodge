@@ -12,9 +12,11 @@ const SLICE = [
   /^\/api\/config$/,
   /^\/api\/events$/,
   /^\/api\/files(\?|$)/,
+  /^\/api\/health$/,
   /^\/api\/groups(\/|$)/,
   /^\/api\/instances$/,
   /^\/api\/mcp\/servers(\/|$)/,
+  /^\/api\/sandbox\/run$/,
   /^\/api\/skills-library(\/|$)/,
   /^\/api\/threads\//,
 ]

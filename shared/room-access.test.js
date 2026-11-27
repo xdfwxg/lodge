@@ -10,9 +10,10 @@ import {
 import { canSkipApproval, grantBrowserToAll } from '../server/crew/room-access.js'
 
 test('browser research is a read-only grant, not a room mode', () => {
-  const grant = { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }
+  const grant = { server: 'chrome-devtools', approval: 'ask' }
   assert.equal(isBrowserGrant(grant), true)
-  assert.equal(isBrowserGrant({ ...grant, scopes: ['read', 'write'] }), false)
+  // 别的服务器不是浏览器授权；只读与否由工具名那张表决定，不看授权字段。
+  assert.equal(isBrowserGrant({ server: 'github', approval: 'ask' }), false)
   assert.equal(isBrowserGrant({ ...grant, approval: 'auto' }), false)
   assert.equal(hasBrowserGrant({ mcp: [grant] }), true)
   assert.equal(hasBrowserGrant({ body: { spec: { mcp: [grant] } } }), true)
@@ -34,7 +35,7 @@ test('read-only research covers safe browser reads, search and fetch, but not co
 })
 
 const tool = name => `mcp__${BROWSER_MCP_SERVER_NAME}__${name}`
-const member = { mcp: [{ server: BROWSER_MCP_SERVER_NAME, scopes: ['read'], approval: 'ask' }] }
+const member = { mcp: [{ server: BROWSER_MCP_SERVER_NAME, approval: 'ask' }] }
 
 test('read-only research covers web search and safe browser reads', () => {
   assert.equal(isReadOnlyResearchTool('WebSearch'), true)

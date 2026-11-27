@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url'
 import { createBaseClient } from '../server/base.js'
 
 const dir = dirname(fileURLToPath(import.meta.url))
-const bin = process.env.LODGE_BASE_RS_BIN ?? join(dir, 'target', 'debug', 'lodge-base-slice')
-const fakePi = join(dir, 'fake-pi.mjs')
+const bin = process.env.LODGE_BASE_RS_BIN ?? join(dir, 'target', 'debug', process.platform === 'win32' ? 'lodge-base-slice.exe' : 'lodge-base-slice')
+const fakePi = join(dir, process.platform === 'win32' ? 'fake-pi.cmd' : 'fake-pi.mjs')
 const port = 21000 + Math.floor(Math.random() * 300)
 const baseUrl = `http://127.0.0.1:${port}`
 const dataDir = mkdtempSync(join(tmpdir(), 'lodge-base-orphan-'))

@@ -2,7 +2,7 @@ import { fail, ok } from '../../result.js'
 import { APPROVAL_STATE, PAUSE_REASON, ROOM_STATE } from '../../../../shared/states.js'
 import { roomModeOfRoom } from '../../rooms/kinds.js'
 import { resolveRoomType } from '../../rooms/kinds.js'
-import { engineBlockReason } from '../../../../shared/engine-readiness.js'
+import { availableEngines, engineBlockReason, modelBlockReason, resolveEngine } from '../../../../shared/engine-readiness.js'
 import { bodyChangeBlocker } from '../../body-change.js'
 import { normalizeBodySpec } from '../../body-spec.js'
 import { mergeRoleSkills } from '../../../../shared/role-toolbox.js'
@@ -11,7 +11,10 @@ import { isBrowserGrant } from '../../../../shared/room-access.js'
 import { plainRuntimeError } from '../../base-error.js'
 import { independenceOf } from '../../independence.js'
 import { roomToolsFor } from '../../gate/tool.js'
-import { toolScopeFor } from '../../tool-scope.js'
+import { executionProfileFor, nativeToolsFor, supportsToolScoping, toolScopeFor } from '../../tool-scope.js'
+import { TURN_BUDGET } from '../../../../shared/turn-budget.js'
+import { approvalOf, networkModeOf, roomPolicyOf } from '../../../../shared/room-policy.js'
+import { DESKTOP_MCP_SERVER_NAME } from '../../../../shared/desktop-mcp.js'
 
 const labelOf = (instances, engineId, model) => {
   const instance = instances.find(item => item.id === engineId)
@@ -61,22 +64,32 @@ export const createBodySwap = ({ store, engine, emit }) => {
     )
     spec.mcp = grantBrowserToAll([{ mcp: spec.mcp }])[0].mcp
     const writes = member.permissions?.write === true || member.permissions?.exec === true
-    if ((member.role === 'lead' || member.role === 'verifier' || writes) && spec.mcp.some(grant => !isBrowserGrant(grant))) {
+    const desktopRoom = room.workspace?.capabilities?.desktop === true
+    const allowedExtra = grant => desktopRoom && (member.roleKind === 'executor' || member.role === 'worker') && grant?.server === DESKTOP_MCP_SERVER_NAME
+    if ((member.role === 'lead' || member.role === 'verifier' || writes) && spec.mcp.some(grant => !isBrowserGrant(grant) && !allowedExtra(grant))) {
       return fail('invalid', '有写或执行权的成员只能用只读浏览器，不能挂其他外部工具。')
     }
-    const instance = instances.find(item => item.id === engineId)
+    const instance = resolveEngine(instances, engineId, modelId)
     const requiresGate = resolveRoomType(room.roomType)?.readOnly !== true && member.permissions?.exec === true
     const issue = engineBlockReason(instance, { requireApproval: requiresGate })
     if (issue !== '') {
       if (issue === '登录失效') return fail('invalid', '这个模型服务还没登录，先登录。')
+      if (issue === '还不能改文件、跑命令') return fail('invalid', '这个模型这一版还不能改文件、跑命令')
       if (issue === '不会先问你外部动作') return fail('invalid', '这个模型不会先问你，不能用来执行')
-      return fail('invalid', issue === '没有这个模型服务' ? '这个模型服务现在不可用' : `这个模型服务现在不可用：${issue}`)
+      if (issue === '没有这个模型服务') {
+        const available = availableEngines(instances)
+        return fail('invalid', `这个模型服务现在不可用；可用：${available === '' ? '没有' : available}`)
+      }
+      return fail('invalid', `这个模型服务现在不可用：${issue}`)
     }
+    const modelIssue = modelBlockReason(instance, modelId)
+    if (modelIssue !== '') return fail('invalid', modelIssue)
     if (engineId === member.body.engine && modelId === (member.body.model ?? '') && JSON.stringify(spec) === JSON.stringify(current)) {
       return fail('invalid', '还没有改动')
     }
 
     const oldBody = { ...member.body }
+    const policy = room.policy === undefined ? null : roomPolicyOf(room)
     const model = modelId === '' ? (instance.models?.default ?? oldBody.model ?? '') : modelId
     const selection = { instanceId: instance.id, ...(model === '' ? {} : { model }) }
     // 组队时平台强制跨厂商；之后换模型也不能把这道保证换掉。
@@ -104,10 +117,18 @@ export const createBodySwap = ({ store, engine, emit }) => {
       await engine.patchMemberBot(member.body.ref, {
         soul,
         description: member.station,
-        approval: member.approval,
+        approval: policy === null
+          ? member.approval
+          : (supportsToolScoping(instance.id) ? approvalOf(policy) : 'ask'),
         mcp: spec.mcp,
+        autoMcpServers: spec.mcp.filter(grant => grant?.approval === 'auto' && typeof grant?.server === 'string').map(grant => grant.server),
         roomTools: roomToolsFor(member),
         toolScope: toolScopeFor(member),
+        nativeTools: nativeToolsFor(member),
+        budget: TURN_BUDGET,
+        profile: executionProfileFor(member, instance.id),
+        limits: { fileBytes: TURN_BUDGET.fileBytes, processes: TURN_BUDGET.processes },
+        network: policy === null ? 'proxy' : networkModeOf(policy),
         modelSelection: selection,
       })
       // 没有技能可改时不去碰基座的技能库；聊天室成员本来就不挂工具。

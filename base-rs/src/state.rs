@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::discovery::Discovery;
 use crate::drivers::DriverKind;
 use crate::events::EventBus;
+use crate::selfcheck::SelfCheck;
 use crate::store::Store;
 use crate::turns::{recover, TurnRegistry};
 
@@ -16,22 +17,41 @@ pub struct App {
     pub discovery: Arc<Discovery>,
     /// 群/成员的生命周期与开局互斥：删除和开始不能同时穿过。
     pub lifecycle: std::sync::Mutex<()>,
+    /// 出口代理：None 表示显式关闭（LODGE_EGRESS=off）。
+    pub egress: Option<crate::egress::Egress>,
+    /// 只放行模型厂商的第二个出口：房间声明“只连模型”时用它。
+    pub egress_model: Option<crate::egress::Egress>,
     pub fake: bool,
+    /// 启动自检的结果：不过就拒绝开新回合，并把原因说清。
+    pub self_check: SelfCheck,
 }
 
 impl App {
-    pub fn new(store: Store, fake: bool) -> Arc<Self> {
+    pub fn new(
+        store: Store,
+        fake: bool,
+        egress: Option<crate::egress::Egress>,
+        egress_model: Option<crate::egress::Egress>,
+        self_check: SelfCheck,
+    ) -> Arc<Self> {
         let store = Arc::new(store);
         let events = EventBus::new(store.clone());
         let turns = Arc::new(TurnRegistry::default());
         recover(&turns, &store, &events);
+        crate::sandbox::clean_stale_scratch();
+        if !self_check.ok() {
+            eprintln!("lodge-base-slice: 自检没通过：{}", self_check.problems.join("；"));
+        }
         Arc::new(Self {
             store,
             events,
             turns,
             discovery: Arc::new(Discovery::new()),
             lifecycle: std::sync::Mutex::new(()),
+            egress,
+            egress_model,
             fake,
+            self_check,
         })
     }
 }
@@ -45,6 +65,8 @@ pub fn driver_kind_of(bot: &serde_json::Value) -> DriverKind {
         .unwrap_or("");
     match instance {
         "pi" => DriverKind::Pi,
+        "claude" => DriverKind::Claude,
+        "codex" => DriverKind::Codex,
         "fake" => DriverKind::Fake,
         _ => DriverKind::Unsupported,
     }

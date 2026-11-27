@@ -1,18 +1,20 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
-import { createLiveTurns } from './rooms/studio/turns.js'
+import { createLiveTurns } from './rooms/studio/runtime/turns.js'
 import { BusinessError } from './result.js'
-import { normalizeTestRoom, withAssignments } from './testing/room.js'
+import { withAssignments } from './testing/room.js'
 
 const ports = createCrewPorts()
 
 const store = messages => withAssignments({
-  readRoom: () => normalizeTestRoom({
+  readRoom: () => ({
     id: 'room-1',
+    roomType: 'studio',
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
-    seatSpecs: [{ id: 'verifier', role: 'verifier', name: 'Verifier' }],
-    seatNames: { verifier: 'Verifier' },
+    members: [
+      { "id": "verifier", "role": "verifier", "name": "Verifier", "roleKind": "verifier", body: {"kind":"base","name":"Verifier"} },
+    ],
     seatRooms: {},
   }),
   readMessages: () => messages,
@@ -24,21 +26,20 @@ const store = messages => withAssignments({
 
 test('resume starts an active stage by waking the executor', async () => {
   const sent = []
-  const room = normalizeTestRoom({
+  const room = {
     ...store([]).readRoom(),
     live: true,
     state: 'active',
     busy: false,
-    leadSeat: 'planner',
+    leadMemberId: 'planner',
     members: ['planner', 'worker'],
     workers: ['worker'],
-    seatNames: { planner: 'Planner', worker: 'Worker' },
-    seatSpecs: [
-      { id: 'planner', role: 'lead', name: 'Planner' },
-      { id: 'worker', role: 'worker', name: 'Worker' },
+    members: [
+      { "id": "planner", "role": "lead", "name": "Planner", "roleKind": "planner", body: {"kind":"base","name":"Planner"} },
+      { "id": "worker", "role": "worker", "name": "Worker", "roleKind": "executor", body: {"kind":"base","name":"Worker"} },
     ],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
-  })
+  }
   const turns = createLiveTurns({
     store: {
       ...store([]),
@@ -62,23 +63,23 @@ test('resume starts an active stage by waking the executor', async () => {
 
 test('resume re-requests a review that was pending before restart', async () => {
   const sent = []
-  const room = normalizeTestRoom({
+  const room = {
     ...store([]).readRoom(),
     live: true,
     state: 'active',
     busy: false,
     workers: ['worker'],
     verifiers: ['verifier'],
-    seatNames: { worker: 'Worker', verifier: 'Verifier' },
-    seatSpecs: [
-      { id: 'worker', role: 'worker', name: 'Worker' },
-      { id: 'verifier', role: 'verifier', name: 'Verifier' },
+    members: [
+      { "id": "worker", "role": "worker", "name": "Worker", "roleKind": "executor", body: {"kind":"base","name":"Worker"} },
+      { "id": "verifier", "role": "verifier", "name": "Verifier", "roleKind": "verifier", body: {"kind":"base","name":"Verifier"} },
     ],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
     usage: { costMicroUsd: 0, budgetMicroUsd: 5_000_000 },
-  })
+  }
   const evidence = {
     id: 'e1',
+    roomType: 'studio',
     kind: 'evidence',
     seq: 1,
     meta: { stage: 0, kind: 'result' },
@@ -106,22 +107,22 @@ test('resume re-requests a review that was pending before restart', async () => 
 
 test('resume re-requests a manual review that was pending before restart', async () => {
   const sent = []
-  const room = normalizeTestRoom({
+  const room = {
     ...store([]).readRoom(),
     live: true,
     state: 'active',
     busy: false,
     workers: ['worker'],
     verifiers: ['verifier'],
-    seatNames: { worker: 'Worker', verifier: 'Verifier' },
-    seatSpecs: [
-      { id: 'worker', role: 'worker', name: 'Worker' },
-      { id: 'verifier', role: 'verifier', name: 'Verifier' },
+    members: [
+      { "id": "worker", "role": "worker", "name": "Worker", "roleKind": "executor", body: {"kind":"base","name":"Worker"} },
+      { "id": "verifier", "role": "verifier", "name": "Verifier", "roleKind": "verifier", body: {"kind":"base","name":"Verifier"} },
     ],
     stages: [{ title: 'artifact', kind: 'deliverable', state: 'active', deliverable: '一份结果' }],
-  })
+  }
   const evidence = {
     id: 'e-manual',
+    roomType: 'studio',
     kind: 'evidence',
     seq: 1,
     meta: { stage: 0, kind: 'result' },
@@ -149,16 +150,17 @@ test('resume re-requests a manual review that was pending before restart', async
 
 test('resume leaves a busy room alone', async () => {
   let sent = 0
-  const room = normalizeTestRoom({
+  const room = {
     ...store([]).readRoom(),
     live: true,
     state: 'active',
     busyMembers: ['worker'],
     workers: ['worker'],
-    seatNames: { worker: 'Worker' },
-    seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
+    members: [
+      { "id": "worker", "role": "worker", "name": "Worker", "roleKind": "executor", body: {"kind":"base","name":"Worker"} },
+    ],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
-  })
+  }
   const turns = createLiveTurns({
     store: { ...store([]), readRoom: () => room, updateRoom: () => null },
     engine: {},
@@ -174,7 +176,7 @@ test('resume leaves a busy room alone', async () => {
   assert.equal(sent, 0)
 })
 
-test('turns already captured before restart are not captured again', () => {
+test('turns already captured before restart are not captured again', async () => {
   let appended = 0
   const turns = createLiveTurns({
     store: {
@@ -188,7 +190,7 @@ test('turns already captured before restart are not captured again', () => {
     files: ports.files,
   })
   turns.seed([{ kind: 'evidence', meta: { turnId: 'turn-1' } }])
-  turns.captureTurn({ turnId: 'turn-1', reply: 'done', toolCalls: 1 }, null)
+  await turns.captureTurn({ turnId: 'turn-1', reply: 'done', toolCalls: 1 }, null)
   assert.equal(appended, 0)
 })
 
@@ -211,23 +213,22 @@ test('a business rejection from review is a typed failure, not a system error', 
 
 test('resume wakes only the assignments that have not reported', async () => {
   const sent = []
-  const room = normalizeTestRoom({
+  const room = {
     ...store([]).readRoom(),
     live: true,
     state: 'active',
     busy: false,
-    leadSeat: 'planner',
+    leadMemberId: 'planner',
     members: ['planner', 'w1', 'w2'],
     workers: ['w1', 'w2'],
-    seatNames: { planner: 'Planner', w1: 'W1', w2: 'W2' },
-    seatSpecs: [
-      { id: 'planner', role: 'lead', name: 'Planner' },
-      { id: 'w1', role: 'worker', name: 'W1' },
-      { id: 'w2', role: 'worker', name: 'W2' },
+    members: [
+      { "id": "planner", "role": "lead", "name": "Planner", "roleKind": "planner", body: {"kind":"base","name":"Planner"} },
+      { "id": "w1", "role": "worker", "name": "W1", "roleKind": "executor", body: {"kind":"base","name":"W1"} },
+      { "id": "w2", "role": "worker", "name": "W2", "roleKind": "executor", body: {"kind":"base","name":"W2"} },
     ],
     orchestration: 'parallel',
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
-  })
+  }
   const evidence = {
     id: 'e1',
     kind: 'evidence',
@@ -277,17 +278,18 @@ test('resume wakes only the assignments that have not reported', async () => {
 
 test('resume does not dispatch a step the planner handed to the human', async () => {
   let sent = 0
-  const room = normalizeTestRoom({
+  const room = {
     ...store([]).readRoom(),
     live: true,
     state: 'active',
     busy: false,
     workers: ['worker'],
-    seatNames: { worker: 'Worker' },
-    seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
+    members: [
+      { "id": "worker", "role": "worker", "name": "Worker", "roleKind": "executor", body: {"kind":"base","name":"Worker"} },
+    ],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
     lastPlannerDecision: { stage: 0, kind: 'human', verdictId: 'v1' },
-  })
+  }
   const turns = createLiveTurns({
     store: { ...store([]), readRoom: () => room, updateRoom: () => null },
     engine: {},

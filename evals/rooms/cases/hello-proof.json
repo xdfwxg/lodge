@@ -1,0 +1,8 @@
+{
+  "id": "hello-proof",
+  "goal": "在仓库根目录新建 hello.txt，内容为 hello lodge；再写 tools/check.mjs，按 process.cwd() 检查 hello.txt 存在且内容正确，缺失或内容不对时退出非零；交付 lodge-proof.json，entry 与每条 step 的 run 都是能在仓库根直接执行、退出 0 的 shell 命令。",
+  "fixture": "hello-proof",
+  "acceptance": "node tools/check.mjs",
+  "check": "hello-proof.mjs",
+  "note": "真实房的固定版：验交付文件、检查器口径和证明可重跑；原样仓库两样都不通过。"
+}

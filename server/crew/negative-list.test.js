@@ -23,19 +23,19 @@ test('chat modules do not read studio stages, evidence or verdict state', () => 
 
 test('studio modules do not read room.chat', () => {
   for (const file of [
-    'rooms/studio/runtime.js',
-    'rooms/studio/prompts.js',
-    'rooms/studio/stage.js',
-    'rooms/studio/review.js',
-    'rooms/studio/turns.js',
-    'rooms/studio/delivery.js',
-    'rooms/studio/gates.js',
-    'rooms/studio/complete.js',
-    'rooms/studio/service-stages.js',
-    'rooms/studio/verifiers.js',
-    'rooms/studio/stage-plan.js',
-    'rooms/studio/progress.js',
-    'rooms/studio/member-handoff.js',
+    'rooms/studio/runtime/runtime.js',
+    'rooms/studio/runtime/prompts.js',
+    'rooms/studio/plan/stage.js',
+    'rooms/studio/acceptance/review.js',
+    'rooms/studio/runtime/turns.js',
+    'rooms/studio/delivery/delivery.js',
+    'rooms/studio/acceptance/gates.js',
+    'rooms/studio/plan/complete.js',
+    'rooms/studio/plan/service-stages.js',
+    'rooms/studio/acceptance/verifiers.js',
+    'rooms/studio/plan/stage-plan.js',
+    'rooms/studio/plan/progress.js',
+    'rooms/studio/delivery/member-handoff.js',
     'room-types/studio.js',
   ]) {
     const source = read(file)
@@ -70,9 +70,9 @@ test('kernel and creation units reach contexts only through kinds or facades', (
 })
 
 test('shared crew modules reach modes only through kinds, facades or assembly points', () => {
-  const allowed = /(?:^|\/)rooms\/kinds\.js$|(?:^|\/)rooms\/(?:chat|studio)\/facade\.js$/
-  // service.js 分发各模式用例，rooms/base/live.js 装配各模式运行时；它们是组合点，不是共享业务。
-  const assembly = new Set(['service.js', 'rooms/base/live.js'])
+  const allowed = /(?:^|\/)rooms\/kinds\.js$|(?:^|\/)rooms\/(?:chat|studio)\/(?:runtime\/)?facade\.js$/
+  // service.js 分发各模式用例，rooms/live/live.js 装配各模式运行时；它们是组合点，不是共享业务。
+  const assembly = new Set(['service.js', 'rooms/live/live.js'])
   // prompt-golden.js 是模型输入的只读样本，不参与业务分发；它必须同时看到各模式的提示词。
   const samples = new Set(['prompt-golden.js'])
   for (const file of sources('.')) {
@@ -87,9 +87,9 @@ test('shared crew modules reach modes only through kinds, facades or assembly po
 
 test('static discipline lives in member souls, not per-turn prompts', () => {
   for (const file of [
-    'rooms/studio/prompts.js',
-    'rooms/studio/review.js',
-    'rooms/studio/stage.js',
+    'rooms/studio/runtime/prompts.js',
+    'rooms/studio/acceptance/review.js',
+    'rooms/studio/plan/stage.js',
     'rooms/create/input.js',
   ]) {
     assert.doesNotMatch(read(file), /workContract|modeGuidance/, `${file} repeats static discipline`)
@@ -136,9 +136,9 @@ test('member rules never branch on what the task is about', () => {
     'prompt-modes.js',
     'rooms/chat/kind.js',
     'rooms/chat/scheduler.js',
-    'rooms/studio/kind.js',
-    'rooms/studio/prompts.js',
-    'rooms/studio/review.js',
+    'rooms/studio/runtime/kind.js',
+    'rooms/studio/runtime/prompts.js',
+    'rooms/studio/acceptance/review.js',
     'rooms/create/input.js',
     'member-delivery.js',
   ]

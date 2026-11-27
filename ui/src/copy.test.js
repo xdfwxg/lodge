@@ -61,6 +61,7 @@ test('waiting and pause use short state words', () => {
   assert.equal(t('Waiting for you · {title}', { title: '房' }), '待处理 · 房')
   assert.equal(t('Paused'), '已暂停')
   assert.equal(t('Stopped'), '已停止')
-  assert.equal(buildIdleDecision({ state: 'paused', pauseReason: 'mcp' }).title, '连接中断')
-  assert.equal(buildIdleDecision({ state: 'paused', pauseReason: 'approval' }).title, '确认超时')
+  // 暂停的原因由服务端说一次（needsYou.label）；界面不再按 pauseReason 另写一套词。
+  assert.equal(buildIdleDecision({ state: 'paused', needsYou: { kind: 'mcp', label: '连接中断' } }).title, '连接中断')
+  assert.equal(buildIdleDecision({ state: 'paused' }).title, '已暂停')
 })

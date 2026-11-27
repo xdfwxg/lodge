@@ -5,7 +5,7 @@ import { normalizeAttachments, textOfFile } from './attachments.js'
 const base = {
   kind: 'image',
   name: '0b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d.png',
-  path: '/Users/me/.openmausbot/attachments/0b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d.png',
+  path: '/Users/me/Library/Application Support/Lodge/base-data-rs/attachments/0b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d.png',
   mime: 'image/png',
   bytes: 1200,
 }

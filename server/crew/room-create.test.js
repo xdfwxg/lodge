@@ -31,7 +31,6 @@ const completedRoom = dataDir => {
     state: 'complete',
     stages: [{ title: '实现', kind: 'deliverable', state: 'passed' }],
     constraints: [],
-    seatSpecs: [],
     workers: ['executor'],
     verifiers: [],
     repoPath: archive,
@@ -47,13 +46,17 @@ const completedRoom = dataDir => {
 
 const fakeEngine = ({ available = ['claude', 'pi', 'deepseek'] } = {}) => {
   const seatNames = []
+  const seatSettings = []
   const skillAssignments = []
   return {
     seatNames,
+    seatSettings,
     skillAssignments,
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
-    createMemberBot: async ({ name, engine, model }) => {
+    health: async () => ({ ok: true, networkModes: ['proxy', 'model', 'none'] }),
+    createMemberBot: async ({ name, engine, model, ...settings }) => {
       seatNames.push(name)
+      seatSettings.push({ name, ...settings })
       const actual = engine !== undefined && available.includes(engine) ? engine : available[0]
       const actualModel = actual === engine && model !== undefined
         ? model
@@ -65,12 +68,17 @@ const fakeEngine = ({ available = ['claude', 'pi', 'deepseek'] } = {}) => {
       return { assignedSkills: skills }
     },
     createRoom: async ({ name }) => ({ id: `room-${name}`, sessionRef: `thread-${name}` }),
+    deleteRoom: async () => {},
+    deleteMemberBot: async () => {},
+    updateRoomMembers: async () => {},
   }
 }
 
+// 房型引擎会用的 live 方法都在这里实现；缺一个就会在建房时炸成一条“服务错误”。
 const fakeLive = () => ({
   attach: async () => {},
   startStage: async () => {},
+  startChat: async () => {},
   sendToMember: async () => ({ messageId: null }),
 })
 
@@ -129,6 +137,49 @@ test('a studio starts with the planner alone and only the alignment stage', asyn
   assert.equal(room.stages[0].state, 'active')
   // 执行和验收等规划师组队后再开通，建房时不建多余的 bot。
   assert.deepEqual(engine.seatNames.filter(name => !name.startsWith('影子评审')), ['规划师'])
+})
+
+test('a new studio applies its room policy to the member bodies', async () => {
+  const { store } = completedRoom(temp('lodge-policy-data-'))
+  const engine = fakeEngine()
+  const result = await run(store, {
+    goal: '把启动说明写清楚',
+    verify: 'manual',
+    members: [{ role: 'lead', name: '规划师', engine: 'pi' }],
+    policy: { files: 'confirm', network: 'model', external: 'ask' },
+  }, engine)
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.policy.network, 'model')
+  const lead = engine.seatSettings.find(item => item.name === '规划师')
+  assert.equal(lead.approval, 'ask')
+  assert.equal(lead.network, 'model')
+})
+
+test('model-only is refused when a member engine cannot enforce it', async () => {
+  const { store } = completedRoom(temp('lodge-policy-model-data-'))
+  const engine = fakeEngine()
+  const result = await run(store, {
+    goal: '把启动说明写清楚',
+    verify: 'manual',
+    members: [{ role: 'lead', name: '规划', engine: 'claude' }],
+    policy: { files: 'direct', network: 'model', external: 'ask' },
+  }, engine)
+  assert.equal(result.ok, false)
+  assert.match(result.error, /不支持/)
+})
+
+test('a member engine without tool scoping keeps asking', async () => {
+  const { store } = completedRoom(temp('lodge-policy-claude-data-'))
+  const engine = fakeEngine()
+  const result = await run(store, {
+    goal: '把启动说明写清楚',
+    verify: 'manual',
+    members: [{ role: 'lead', name: '规划', engine: 'claude' }],
+    policy: { files: 'direct', network: 'proxy', external: 'auto' },
+  }, engine)
+  assert.equal(result.ok, true)
+  const lead = engine.seatSettings.find(item => item.name === '规划')
+  assert.equal(lead.approval, 'ask')
 })
 
 test('a handoff brief with a long topic names the stage after the task, not the paperwork', async () => {
@@ -601,3 +652,42 @@ test('a studio receipt becomes the chat room receipt and transfer record', async
   assert.ok(result.body.room.transfer.at > 0)
 })
 
+
+
+test('the computer is a workspace: studio only, provider required, executors get the hands', async () => {
+  const saved = process.env.LODGE_DESKTOP_MCP_URL
+  try {
+    delete process.env.LODGE_DESKTOP_MCP_URL
+    const { store } = completedRoom(temp('lodge-desktop-missing-'))
+    const missing = await run(store, { goal: '把报价单填完', workspaceProvider: 'desktop' }, fakeEngine())
+    assert.equal(missing.ok, false)
+    assert.match(missing.error, /提供方/)
+
+    process.env.LODGE_DESKTOP_MCP_URL = 'http://127.0.0.1:8897/mcp'
+    const chat = await run(completedRoom(temp('lodge-desktop-chat-')).store, {
+      goal: '聊聊天',
+      roomType: 'chat',
+      workspaceProvider: 'desktop',
+    }, fakeEngine(), null, null, { ...createCrewPorts(), desktopMcp: { ensure: async () => true } })
+    assert.equal(chat.ok, false)
+    assert.match(chat.error, /聊天室不能/)
+
+    const engine = fakeEngine()
+    const studio = await run(completedRoom(temp('lodge-desktop-studio-')).store, {
+      goal: '把报价单填完',
+      verify: 'manual',
+      workspaceProvider: 'desktop',
+      members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+    }, engine, null, null, { ...createCrewPorts(), desktopMcp: { ensure: async () => true } })
+    assert.equal(studio.ok, true)
+    assert.equal(studio.body.room.workspace.capabilities.desktop, true)
+    const worker = engine.seatSettings.find(settings => settings.name === '执行')
+    assert.ok(worker.mcp?.some(grant => grant.server === 'desktop'), 'the executor gets the computer tools')
+    assert.deepEqual(worker.autoMcpServers, ['desktop'], 'the workspace choice is the consent')
+    const verifier = engine.seatSettings.find(settings => settings.name === '验收')
+    assert.equal(verifier.mcp?.some(grant => grant.server === 'desktop') ?? false, false, 'the verifier does not')
+  } finally {
+    if (saved === undefined) delete process.env.LODGE_DESKTOP_MCP_URL
+    else process.env.LODGE_DESKTOP_MCP_URL = saved
+  }
+})

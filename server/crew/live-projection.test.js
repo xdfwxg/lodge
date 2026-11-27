@@ -238,6 +238,27 @@ test('bare base names in prose become member names', () => {
   assert.equal(stored.text, '甲 同意，另一个人不同意。')
 })
 
+test('one tool call is one timeline row: the start and its receipt share an id', () => {
+  const base = {
+    kind: 'activity',
+    role: 'bot',
+    authorRef: 'bot-1',
+    text: 'bash',
+    turnId: 'turn-1',
+    tool: { itemId: 'call_1', name: 'bash', step: { activity: 'command', target: 'npm test', detail: 'npm test' } },
+    at: 1000,
+  }
+  const started = projector.toStored('room-1', { ...base, id: 'a1' })
+  assert.equal(started.id, 'a1')
+  assert.equal('ok' in started.meta, false, '还在跑时不写 ok')
+  const ended = projector.toStored('room-1', { ...base, id: 'a2', ok: false, at: 2000, tool: { ...base.tool, output: 'boom' } })
+  // 后到的回执覆盖同一条，不把一次 bash 记成两条。
+  assert.equal(ended.id, 'a1')
+  assert.equal(ended.meta.ok, false)
+  assert.equal(ended.meta.itemId, 'call_1')
+  assert.equal(ended.meta.turnId, 'turn-1')
+})
+
 test('tool activity keeps what it is doing for the room status', () => {
   const stored = projector.toStored('room-1', {
     id: 'a1',

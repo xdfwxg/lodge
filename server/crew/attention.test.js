@@ -55,8 +55,18 @@ test('a lost base connection and a timed-out stage both ask the human', () => {
     label: '执行超时',
     detail: '退回重做，或叫停后重新派活。',
   })
-  blocked.blocked.reason = 'restart'
-  assert.equal(roomNeedsYou(blocked, []).label, '重启后没接着做')
+  blocked.blocked.reason = 'boundary'
+  assert.equal(roomNeedsYou(blocked, []).label, '越界改动没能退回')
+  // 没登记的理由不糊弄成“执行超时”：如实说停住了。
+  blocked.blocked.reason = 'something-new'
+  assert.equal(roomNeedsYou(blocked, []).label, '这一步停住了')
+})
+
+test('a member stopped for reading someone else’s copy is not a human decision', () => {
+  const r = room()
+  // 平台停的是这一位成员，接着用其余人的结果走；把它做成待办会让人等一件已经在发生的事。
+  r.blocked = { stage: 1, reason: 'read-boundary', members: ['worker'] }
+  assert.equal(roomNeedsYou(r, []), null)
 })
 
 test('a busy member is not a needs-you state', () => {
@@ -102,7 +112,7 @@ test('a budget pause names the round budget', () => {
 test('multiple verifiers report progress and require all PASS', () => {
   const r = room()
   r.members = [...r.members.filter(item => item.roleKind !== 'verifier'), member('v1', '验收一', 'verifier', 'verifier'), member('v2', '验收二', 'verifier', 'verifier')]
-  assert.deepEqual(roomNeedsYou(r, [evidence(), verdict(true, 11, 'v1')]), { kind: 'review', stage: 1, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false })
+  assert.deepEqual(roomNeedsYou(r, [evidence(), verdict(true, 11, 'v1')]), { kind: 'review-timeout', stage: 1, label: '复核没有开始', detail: '可以再叫一次复核，或退回重做。' })
   assert.equal(roomNeedsYou(r, [evidence(), verdict(true, 11, 'v1'), verdict(true, 12, 'v2')]).kind, 'signoff')
   assert.equal(roomNeedsYou(r, [evidence(), verdict(true, 11, 'v1'), verdict(false, 12, 'v2')]).kind, 'rework')
 })
@@ -129,8 +139,10 @@ test('a planner handoff asks the human instead of showing rework', () => {
   assert.match(needs.detail, /版本号/)
 })
 
-test('result evidence without a verdict waits for review', () => {
-  assert.equal(roomNeedsYou(room(), [evidence()]).kind, 'review')
+test('result evidence with no review out says the review never started', () => {
+  // 有结果、没有判定、也没有复核交接在外面：说“验收员在看”就是骗人。
+  assert.equal(roomNeedsYou(room(), [evidence()]).kind, 'review-timeout')
+  assert.equal(roomNeedsYou(room(), [evidence()]).label, '复核没有开始')
 })
 
 test('recent executor activity hides a stale review status', () => {
@@ -141,7 +153,7 @@ test('recent executor activity hides a stale review status', () => {
     null,
   )
   const old = { ...activity, ts: Date.now() - 3 * 60_000 }
-  assert.equal(roomNeedsYou(room(), [evidence(), old]).kind, 'review')
+  assert.equal(roomNeedsYou(room(), [evidence(), old]).kind, 'review-timeout')
 })
 
 test('recent activity does not hide a planner handoff', () => {
@@ -205,7 +217,7 @@ test('an idle pause asks the human to speak', () => {
 test('the inbox holds only this room', () => {
   const items = roomAttention(room(), [evidence()])
   assert.equal(items.length, 1)
-  assert.deepEqual(items[0], { kind: 'review', stage: 1, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false })
+  assert.deepEqual(items[0], { kind: 'review-timeout', stage: 1, label: '复核没有开始', detail: '可以再叫一次复核，或退回重做。' })
 })
 
 test('a question card from an earlier stage no longer asks', () => {

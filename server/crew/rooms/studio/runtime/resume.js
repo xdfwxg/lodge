@@ -1,5 +1,5 @@
-import { reviewState, reworkFloor } from '../verifiers.js'
-import { isWorkStage } from '../turn-utils.js'
+import { reviewState, reworkFloor } from '../acceptance/verifiers.js'
+import { isWorkStage } from './turn-utils.js'
 import {
   activeDispatchAssignments as activeDispatch,
   transitionAssignment,
@@ -7,7 +7,7 @@ import {
 } from '../../../assignments.js'
 import { dispatchOf } from '../../../assignment-projections.js'
 import { leadMemberOf, workerIds } from '../../../room-members.js'
-import { workspaceOf } from '../workspace.js'
+import { workspaceOf } from './workspace.js'
 import { systemNotice } from '../../../notices.js'
 import { PLANNER_DECISION_KIND, REVIEW_STATE, ROOM_STATE, STAGE_STATE } from '../../../../../shared/states.js'
 

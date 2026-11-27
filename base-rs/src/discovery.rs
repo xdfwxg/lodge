@@ -7,13 +7,12 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
-use tokio::process::Command;
 
 /// 主流 agent：找到就列出；没有驱动的诚实标 unsupported，不冒充可用。
 const AGENTS: &[(&str, &str, bool)] = &[
     ("pi", "Pi", true),
-    ("claude", "Claude Code", false),
-    ("codex", "Codex CLI", false),
+    ("claude", "Claude Code", true),
+    ("codex", "Codex CLI", true),
     ("gemini", "Gemini CLI", false),
     ("opencode", "OpenCode", false),
     ("cursor-agent", "Cursor Agent", false),
@@ -37,6 +36,12 @@ impl Discovered {
         let models = if self.kind == "pi" {
             let (default, options) = pi_models();
             json!({ "default": default, "options": options })
+        } else if self.kind == "codex" {
+            // v1 只接 DeepSeek；这个模型名是驱动和环境一起验证过的那一个。
+            json!({
+                "default": "deepseek-chat",
+                "options": [{ "id": "deepseek-chat", "label": "DeepSeek Chat" }]
+            })
         } else {
             json!({ "default": "", "options": [] })
         };
@@ -55,10 +60,14 @@ impl Discovered {
             "version": self.version,
             "snapshot": snapshot,
             "models": models,
-            "capabilities": if self.state == "available" {
-                json!({ "approvalReview": true, "streaming": true })
-            } else {
+            // claude / codex v1 不带工具面、没有审批卡，也不发内容增量帧：能力面如实标出来。
+            // `tools: false` 是给 Lodge 看的：没有工具就没有“先问你”的问题，聊天成员可以直接用。
+            "capabilities": if self.state != "available" {
                 json!({})
+            } else if self.kind == "claude" || self.kind == "codex" {
+                json!({ "approvalReview": false, "streaming": false, "tools": false })
+            } else {
+                json!({ "approvalReview": true, "streaming": true, "tools": true })
             },
         })
     }
@@ -102,7 +111,12 @@ pub async fn discover() -> Vec<Discovered> {
     let mut found: Vec<(&str, &str, bool, Option<PathBuf>)> = Vec::new();
     let mut tasks = Vec::new();
     for (kind, name, supported) in AGENTS {
-        let binary = find_in(&dirs, kind);
+        // claude / codex 有显式的 LODGE_*_BIN 时以它为准：驱动和发现必须是同一个入口。
+        let binary = match *kind {
+            "claude" => claude_binary(),
+            "codex" => codex_binary(),
+            _ => find_in(&dirs, kind),
+        };
         if let Some(path) = &binary {
             let path = path.clone();
             let is_pi = *kind == "pi";
@@ -155,15 +169,17 @@ async fn auth_of(binary: &Path, model: &str) -> Option<bool> {
     if model.trim().is_empty() {
         return None;
     }
-    let child = Command::new(binary)
+    let mut command = crate::platform::command_for(binary);
+    command
         .args(["auth", "check", "--json", "--no-refresh", "--model", model])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .process_group(0)
-        .kill_on_drop(true)
-        .spawn()
-        .ok()?;
+        .kill_on_drop(true);
+    #[cfg(unix)]
+    command.process_group(0);
+    crate::platform::hide_window(&mut command);
+    let child = command.spawn().ok()?;
     let output = tokio::time::timeout(Duration::from_secs(4), child.wait_with_output())
         .await
         .ok()?
@@ -179,53 +195,53 @@ pub fn search_dirs() -> Vec<PathBuf> {
     let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
         .map(|value| std::env::split_paths(&value).collect())
         .unwrap_or_default();
-    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
-        dirs.push(home.join(".local/bin"));
-        dirs.push(home.join(".npm-global/bin"));
-        dirs.push(home.join(".bun/bin"));
-        dirs.push(home.join(".cargo/bin"));
-    }
-    dirs.push(PathBuf::from("/opt/homebrew/bin"));
-    dirs.push(PathBuf::from("/usr/local/bin"));
+    dirs.extend(crate::platform::fallback_search_dirs());
     let mut seen = std::collections::HashSet::new();
     dirs.into_iter().filter(|dir| seen.insert(dir.clone())).collect()
 }
 
+/// pi 的实际入口：显式 `LODGE_PI_BIN` 优先，否则按 PATH 找。驱动和严格档的读白名单共用这一份。
+pub fn pi_binary() -> Option<PathBuf> {
+    std::env::var_os("LODGE_PI_BIN")
+        .map(PathBuf::from)
+        .or_else(|| find_in(&search_dirs(), "pi"))
+}
+
+/// claude 的实际入口：显式 `LODGE_CLAUDE_BIN` 优先（契约测试用），否则按 PATH 找。
+pub fn claude_binary() -> Option<PathBuf> {
+    std::env::var_os("LODGE_CLAUDE_BIN")
+        .map(PathBuf::from)
+        .or_else(|| find_in(&search_dirs(), "claude"))
+}
+
+/// codex 的实际入口：显式 `LODGE_CODEX_BIN` 优先（契约测试用），否则按 PATH 找。
+pub fn codex_binary() -> Option<PathBuf> {
+    std::env::var_os("LODGE_CODEX_BIN")
+        .map(PathBuf::from)
+        .or_else(|| find_in(&search_dirs(), "codex"))
+}
+
 pub fn find_in(dirs: &[PathBuf], name: &str) -> Option<PathBuf> {
     for dir in dirs {
-        let candidate = dir.join(name);
-        if is_executable(&candidate) {
-            return Some(candidate);
+        if let Some(found) = crate::platform::executable_in(dir, name) {
+            return Some(found);
         }
     }
     None
 }
 
-fn is_executable(path: &Path) -> bool {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        return path
-            .metadata()
-            .map(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
-            .unwrap_or(false);
-    }
-    #[cfg(not(unix))]
-    {
-        path.is_file()
-    }
-}
-
 async fn version_of(binary: &Path) -> Option<String> {
-    let child = Command::new(binary)
+    let mut command = crate::platform::command_for(binary);
+    command
         .arg("--version")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .process_group(0)
-        .kill_on_drop(true)
-        .spawn()
-        .ok()?;
+        .kill_on_drop(true);
+    #[cfg(unix)]
+    command.process_group(0);
+    crate::platform::hide_window(&mut command);
+    let child = command.spawn().ok()?;
     let output = tokio::time::timeout(Duration::from_secs(3), child.wait_with_output())
         .await
         .ok()?
@@ -237,7 +253,7 @@ async fn version_of(binary: &Path) -> Option<String> {
     Some(text.lines().next().unwrap_or("").trim().to_string())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use std::io::Write;
@@ -263,8 +279,7 @@ mod tests {
 }
 
 fn pi_models() -> (String, Vec<Value>) {
-    let settings = std::env::var_os("HOME")
-        .map(PathBuf::from)
+    let settings = crate::platform::home_dir()
         .map(|home| home.join(".pi/agent/settings.json"));
     let Some(path) = settings else { return (String::new(), Vec::new()) };
     let Ok(text) = std::fs::read_to_string(path) else { return (String::new(), Vec::new()) };

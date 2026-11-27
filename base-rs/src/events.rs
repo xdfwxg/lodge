@@ -84,8 +84,19 @@ impl EventBus {
     }
 
     pub fn replay_after(&self, seq: u64) -> Vec<(u64, Value)> {
-        let buffer = self.buffer.lock().unwrap();
-        buffer.iter().filter(|(item, _)| *item > seq).cloned().collect()
+        // 环形缓冲只留最近 500 条；更早的断线从存储补，不再在缺口处悄悄继续。
+        let mut frames = self.store.events_after(seq, REPLAY_LIMIT * 4);
+        let mut seen: std::collections::HashSet<u64> = frames.iter().map(|(item, _)| *item).collect();
+        {
+            let buffer = self.buffer.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            for (item, frame) in buffer.iter() {
+                if *item > seq && seen.insert(*item) {
+                    frames.push((*item, frame.clone()));
+                }
+            }
+        }
+        frames.sort_by_key(|(item, _)| *item);
+        frames
     }
 
     /// 只有同一个 streamId 的游标才能续传；换基座/重启后从头开始。
@@ -114,7 +125,10 @@ impl EventBus {
         let last = Arc::new(AtomicU64::new(from));
         let stream_id = self.stream_id.clone();
         let hello_frame = Event::default().data(hello.to_string());
-        let live = BroadcastStream::new(receiver).filter_map(|item| item.ok());
+        // 客户端跟不上时不能在缺口处继续悄悄推送：结束这条流，让它带游标重连、按回放补齐。
+        let live = BroadcastStream::new(receiver)
+            .take_while(|item| item.is_ok())
+            .filter_map(|item| item.ok());
         let stream = tokio_stream::iter(replay)
             .chain(live)
             .filter_map(move |(seq, frame)| {
@@ -141,4 +155,29 @@ pub fn runtime_frame(_thread_id: &str, event: Value) -> Value {
 
 pub fn group_frame(group: Value) -> Value {
     json!({ "kind": "group", "group": group })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::store::Store;
+
+    #[test]
+    fn a_reconnect_older_than_the_ring_buffer_is_replayed_from_storage() {
+        let path = std::env::temp_dir().join(format!("lodge-events-replay-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let store = Arc::new(Store::open(&path).unwrap());
+        let bus = EventBus::new(store);
+        for index in 1..=600u64 {
+            bus.emit(json!({
+                "kind": "message",
+                "threadId": "thread-1",
+                "message": { "id": format!("m{index}"), "at": index as i64, "text": "x" }
+            }));
+        }
+        let frames = bus.replay_after(0);
+        assert_eq!(frames.len(), 600, "older frames come from the store, not the 500-frame buffer");
+        assert_eq!(frames.first().unwrap().0, 1);
+        let _ = std::fs::remove_file(&path);
+    }
 }

@@ -74,6 +74,8 @@ const prepareRepo = testCase => {
 
 const runCheck = (checkPath, candidates) => {
   const attempts = []
+  // 副本还没拿到交付（复核副本常见）不算不合格，只跳过；最后报真正判过的那一份。
+  let judged = null
   for (const repo of candidates) {
     if (typeof repo !== 'string' || repo === '' || !existsSync(repo)) continue
     const result = spawnSync(process.execPath, [checkPath, repo], { encoding: 'utf8', timeout: 60_000 })
@@ -82,8 +84,19 @@ const runCheck = (checkPath, candidates) => {
     try { report = JSON.parse(line) } catch {}
     attempts.push({ repo, status: result.status, report, stderr: String(result.stderr ?? '').slice(0, 500) })
     if (report?.pass === true) return { pass: true, repo, report, attempts }
+    if (report?.absent === true) continue
+    judged = attempts.at(-1)
   }
-  const last = attempts.at(-1) ?? null
+  const last = judged ?? attempts.at(-1) ?? null
+  // 每一份副本都还没有交付：说清是“房间没产出”，不要把“副本没就绪”当成交付不合格。
+  if (judged === null && last?.report?.absent === true) {
+    return {
+      pass: false,
+      repo: last?.repo ?? null,
+      report: { pass: false, detail: '房间这一跑没有产出交付，所有副本里都没有交付文件', facts: {} },
+      attempts,
+    }
+  }
   return {
     pass: false,
     repo: last?.repo ?? null,
@@ -163,14 +176,15 @@ const seedMemory = (testCase, repo, key) => {
   return file
 }
 
+// 工作室的组队归规划师：评测只钉住规划师的引擎/模型，执行和验收由方案开出来。
 const membersOf = variant => (
   variant.engine === null && variant.model === null
     ? undefined
-    : ['lead', 'worker', 'verifier'].map(role => ({
-      role,
+    : [{
+      role: 'lead',
       ...(variant.engine === null ? {} : { engine: variant.engine }),
       ...(variant.model === null ? {} : { model: variant.model }),
-    }))
+    }]
 )
 
 const verdictsOf = room => (room.messages ?? []).filter(message => message.kind === 'verdict')
@@ -182,6 +196,8 @@ const roomDone = room => (
 const roomCompleted = room => room.state === 'idle' && room.workRound?.status === 'completed'
 const roomStopped = room => (
   ['paused', 'stopped', 'archived'].includes(room.state) ||
+  // 房间亮出一张要人点的卡（并行卡住、交接失败、复核没结果）：无人看着时这就是停下。
+  room.needsYou !== null && room.needsYou !== undefined && room.needsYou.actionable !== false ||
   room.blocked !== null && room.blocked !== undefined ||
   room.mergeConflict !== null && room.mergeConflict !== undefined ||
   (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') ||
@@ -216,8 +232,15 @@ const waitForRoom = async roomId => {
   return { room, timedOut: true }
 }
 
+// 房间还在跑时不能删它的工作树：删了以后房间既跑不完也恢复不了。
+const terminalRoom = room => room !== null && ['complete', 'stopped'].includes(String(room.state ?? ''))
+
 const cleanup = async room => {
   if (room === null || keep) return []
+  if (!terminalRoom(room)) {
+    console.log(`room ${room.id} is still ${room.state}; keeping its worktree`)
+    return []
+  }
   const errors = []
   for (const action of ['archive', 'delete']) {
     try {
@@ -231,7 +254,7 @@ const cleanup = async room => {
     }
   }
   const short = String(room.id ?? '').replace(/^room-/, '')
-  if (/^[a-z0-9]{4,16}$/.test(short)) {
+  if (errors.length === 0 && /^[a-z0-9]{4,16}$/.test(short)) {
     const worktree = join(scratchRoot(), short)
     try { if (existsSync(worktree)) rmSync(worktree, { recursive: true, force: true }) } catch (error) {
       errors.push(`worktree: ${String(error?.message ?? error).slice(0, 120)}`)
@@ -363,7 +386,10 @@ for (const testCase of cases) {
         if (seedFile !== null) {
           try { if (existsSync(seedFile)) rmSync(seedFile) } catch {}
         }
-        if (repo !== null) rmSync(repo, { recursive: true, force: true })
+        // 房间没结束时保留它的来源仓库；下一次跑同一间房还要用。--keep 保留现场，便于复看。
+        if (repo !== null && !keep && (room === null || terminalRoom(room))) {
+          rmSync(repo, { recursive: true, force: true })
+        }
       }
       results.push(row)
       console.log([

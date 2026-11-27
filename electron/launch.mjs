@@ -1,13 +1,28 @@
-import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { createServer } from 'node:net'
-import { homedir } from 'node:os'
+import { createServer, connect } from 'node:net'
 import { delimiter, join } from 'node:path'
 import { runtimeBinary } from './policy.mjs'
 
 export const RUNTIME_ID = /^[\w-]{1,64}$/
 
-// 端口、基座入口和 runtime 清单都是“启动前的事实”，从 Electron 本体里分出来测。
+// 从外面连一次端口：`open` 在接、`refused` 端口后面真的没了、`busy` 连得上但没响应（循环忙）。
+// 判定必须发生在被监督的进程之外——服务自己的自检会在故障时给出相反的答案。
+export const probePort = (port, { host = '127.0.0.1', timeoutMs = 1_500 } = {}) => new Promise(resolve => {
+  const socket = connect({ host, port })
+  let settled = false
+  const done = state => {
+    if (settled) return
+    settled = true
+    socket.destroy()
+    resolve(state)
+  }
+  socket.setTimeout(timeoutMs)
+  socket.once('connect', () => done('open'))
+  socket.once('timeout', () => done('busy'))
+  socket.once('error', error => done(error?.code === 'ECONNREFUSED' ? 'refused' : 'busy'))
+})
+
+// 端口、基座健康检查和 runtime 清单都是“启动前的事实”，从 Electron 本体里分出来测。
 export const findPort = start => new Promise(resolve => {
   const probe = createServer()
   probe.once('error', () => resolve(findPort(start + 1)))
@@ -53,26 +68,6 @@ export const waitForBase = async (url, { attempts = 80, interval = 250, fetchImp
   return false
 }
 
-export const findNode = ({
-  env = process.env,
-  exists = existsSync,
-  home = homedir(),
-  exec = execFileSync,
-} = {}) => {
-  if (typeof env.LODGE_NODE === 'string' && exists(env.LODGE_NODE)) return env.LODGE_NODE
-  const candidates = [
-    '/usr/local/bin/node',
-    '/opt/homebrew/bin/node',
-    join(home, '.local/bin/node'),
-    join(home, '.nvm/current/bin/node'),
-  ]
-  for (const candidate of candidates) if (exists(candidate)) return candidate
-  try {
-    return exec('which', ['node'], { encoding: 'utf8', timeout: 2_000 }).trim()
-  } catch {
-    return null
-  }
-}
 
 export const runtimeRoots = ({ env = process.env, isPackaged, resourcesPath, appPath }) => [
   ...(typeof env.LODGE_RUNTIMES_DIR === 'string'
@@ -114,21 +109,3 @@ export const findBundledRuntimes = ({ roots, readdir = readdirSync } = {}) => {
   return [...found.values()].sort((a, b) => a.id.localeCompare(b.id))
 }
 
-// Lodge 的每个成员都跑在自己的工作副本里：应用启动的基座默认开 bot-box，
-// 并在 macOS 上 deny 工作目录的兄弟目录。用户显式设成 0 时尊重用户的选择。
-export const baseBoxEnv = ({ env = process.env, platform = process.platform } = {}) => (
-  platform === 'darwin'
-    ? {
-      OMB_BOT_BOX: env.OMB_BOT_BOX ?? '1',
-      OMB_BOT_BOX_DENY_SIBLINGS: env.OMB_BOT_BOX_DENY_SIBLINGS ?? '1',
-    }
-    : {}
-)
-
-export const baseEntryOf = (dir, { exists = existsSync } = {}) => {
-  const bundled = join(dir, 'dist-server', 'openmausbot.js')
-  if (exists(bundled)) return { kind: 'bundled', file: bundled }
-  const source = join(dir, 'server', 'openmausbot.ts')
-  if (exists(source)) return { kind: 'source', file: source }
-  return null
-}

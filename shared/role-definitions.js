@@ -103,7 +103,7 @@ export const materializeRole = (role, overrides = {}) => {
     permissions: { ...definition.permissions, ...(overrides.permissions ?? {}) },
     toolSurface: [...(overrides.toolSurface ?? definition.toolSurface)],
     skills: [...(overrides.skills ?? definition.skills)],
-    mcp: (overrides.mcp ?? definition.mcp).map(grant => ({ ...grant, scopes: [...(grant.scopes ?? [])] })),
+    mcp: (overrides.mcp ?? definition.mcp).map(grant => ({ server: grant.server, approval: grant.approval })),
     rules: [...(overrides.rules ?? definition.rules)],
     artifacts: [...(overrides.artifacts ?? definition.artifacts)],
     gates: [...(overrides.gates ?? definition.gates)],

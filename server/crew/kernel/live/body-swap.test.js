@@ -157,7 +157,7 @@ test('the body carries an editable soul and skills', async () => {
   assert.equal(worker.body.spec.prompt, '只做复核，不解释。')
   assert.deepEqual(worker.body.spec.skills, expected)
   assert.deepEqual(worker.body.spec.mcp, [
-    { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' },
+    { server: 'chrome-devtools', approval: 'ask' },
   ])
   assert.match(calls.patched[0].payload.soul, /只做复核，不解释/)
   assert.deepEqual(calls.skills[0].skills, expected)

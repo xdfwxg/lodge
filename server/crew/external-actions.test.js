@@ -26,6 +26,85 @@ test('local test and build commands stay inside the member permission', () => {
   assert.equal(externalAction({ tool: 'Write', action: 'write', subtitle: 'src/a.js' }), null)
 })
 
+test('deletes inside the work copy or temp do not need approval', () => {
+  const scope = { cwd: '/work/worker', writable: ['/work/worker', '/tmp'] }
+  assert.equal(externalAction(card('rm -rf .tmp'), scope), null)
+  assert.equal(externalAction(card('cd /work/worker && rm -rf build'), scope), null)
+  assert.equal(externalAction(card('find . -name "*.tmp" -delete'), scope), null)
+  assert.equal(externalAction(card('cd /work/worker && CLEAN=$(mktemp -d) && tar -x -C "$CLEAN" && rm -rf "$CLEAN"'), scope), null)
+})
+
+test('deletes outside the writable scope keep the approval', () => {
+  const scope = { cwd: '/work/worker', writable: ['/work/worker', '/tmp'] }
+  assert.equal(externalAction(card('rm -rf /etc'), scope)?.kind, 'delete')
+  assert.equal(externalAction(card('rm -rf ../other'), scope)?.kind, 'delete')
+  assert.equal(externalAction(card('rm -rf "$HOME"'), scope)?.kind, 'delete')
+  // 变量不是本命令里 mktemp 出来的：不猜，仍停下来问。
+  assert.equal(externalAction(card('rm -rf "$CLEAN"'), scope)?.kind, 'delete')
+  assert.equal(externalAction(card('cd /work/worker && rm -rf /tmp/x'), {
+    cwd: '/work/worker',
+    writable: ['/work/worker'],
+  })?.kind, 'delete')
+})
+
+test('a tilde delete is the home directory, not a folder named ~ in the work copy', () => {
+  const scope = { cwd: '/work/worker', writable: ['/work/worker', '/tmp'] }
+  assert.equal(externalAction(card('rm -rf ~'), scope)?.kind, 'delete')
+  assert.equal(externalAction(card('rm -rf ~/Downloads'), scope)?.kind, 'delete')
+  assert.equal(externalAction(card('cd /work/worker && rm -rf ~/projects'), scope)?.kind, 'delete')
+})
+
+test('multiple lines are separate commands and quoting inside a line does not merge them', () => {
+  const scope = { cwd: '/work/worker', writable: ['/work/worker', '/tmp'] }
+  // 嵌入式 JS 里有 | 和 ;：不能因此把后面的 rm 裹进一段假引号里。
+  const clean = [
+    'CLEAN=$(mktemp -d)',
+    'cp -R README.md "$CLEAN"/',
+    `node -e "console.log('a|b;c')"`,
+    'rm -rf "$CLEAN"',
+  ].join('\n')
+  assert.equal(externalAction(card(clean), scope), null)
+  const outside = [
+    `node -e "console.log('a|b;c')"`,
+    'rm -rf /',
+  ].join('\n')
+  assert.equal(externalAction(card(outside), scope)?.kind, 'delete')
+})
+
+test('deletes that follow a separator or a paren are still seen as commands', () => {
+  // 真房教训（hello-proof 两次停在这）：命令里有 for 循环、mktemp 和括号子 shell 时，
+  // 引号切段会把后面连成一大段，`; rm` / `); rm` 前面不是包装命令而是分隔符——
+  // 以前这里直接跳过，整条命令就被当成外部删除，白停一个人。
+  const scope = { cwd: '/work/worker', writable: ['/work/worker', '/tmp'] }
+  const proof = [
+    'cd /work/worker && mkdir -p tmpdir && (cd tmpdir && node ../tools/check.mjs; echo "sub exit=$?"); rmdir tmpdir',
+    'd=$(mktemp -d); cp -R hello.txt tools "$d"/; (cd "$d" && node tools/check.mjs >/dev/null; echo "good exit=$?"; rm hello.txt; node tools/check.mjs >/dev/null 2>&1); rm -rf "$d"',
+    'for c in "node a.mjs" "test -f hello.txt"; do (cd /tmp/x && sh -c "$c" >/dev/null 2>&1; echo "exit=$?"); done',
+  ]
+  for (const command of proof) assert.equal(externalAction(card(command), scope), null, command.slice(0, 60))
+  // 但 `; rm` 指向外面时仍然要停。
+  assert.equal(externalAction(card('echo hi; rm -rf /etc'), scope)?.kind, 'delete')
+  assert.equal(externalAction(card('(rm -rf ../other)'), scope)?.kind, 'delete')
+  // `echo rm` 是参数，不是命令。
+  assert.equal(externalAction(card('echo rm -rf /etc'), scope), null)
+})
+
+test('a local rsync copy is local, a remote one is not', () => {
+  const scope = { cwd: '/work/worker', writable: ['/work/worker', '/tmp'] }
+  assert.equal(externalAction(card('rsync -a --exclude .git ./ /tmp/cleanproof/'), scope), null)
+  assert.equal(externalAction(card('D=$(mktemp -d); rsync -a ./ "$D"/'), scope), null)
+  assert.equal(externalAction(card('rsync -az ./ build@example.com:/srv/app'), scope)?.kind, 'network')
+  assert.equal(externalAction(card('rsync -a -e ssh ./ host:/srv'), scope)?.kind, 'network')
+  // 别的网络动作不能被本地 rsync 带过去。
+  assert.equal(externalAction(card('rsync -a ./ /tmp/x && curl https://example.com'), scope)?.kind, 'network')
+})
+
+test('an internal delete does not hide another external action', () => {
+  const scope = { cwd: '/work/worker', writable: ['/work/worker', '/tmp'] }
+  assert.equal(externalAction(card('rm -rf .tmp && git push origin main'), scope)?.kind, 'push')
+  assert.equal(externalAction(card('rm -rf .tmp && npm install left-pad'), scope)?.kind, 'install')
+})
+
 test('writing text that mentions an install command is not an install', () => {
   assert.equal(externalAction({
     tool: 'Edit',

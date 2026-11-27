@@ -43,6 +43,7 @@ function NewRoomDialog({
   const [goal, setGoal] = useState('')
   const [nameDraft, setNameDraft] = useState('')
   const [repoPath, setRepoPath] = useState('')
+  const [desktop, setDesktop] = useState(false)
   const [handoffBrief, setHandoffBrief] = useState(null)
   const [handoffBriefReviewed, setHandoffBriefReviewed] = useState(false)
   const [receipt, setReceipt] = useState(null)
@@ -68,6 +69,7 @@ function NewRoomDialog({
     setHandoffBrief(null)
     setHandoffBriefReviewed(false)
     setReceipt(null)
+    setDesktop(false)
   }, [open])
 
   useEffect(() => {
@@ -91,7 +93,7 @@ function NewRoomDialog({
   const roomKind = uiKindOfType(roomType)
   const isChat = roomKind.teamMode === 'fixed'
   const canSwitchType = canSwitchRoomType({ startType, seed }) && typeChoices.length > 1
-  const needRepo = roomKind.workspace.required(null) && repoPath.trim() === ''
+  const needRepo = !desktop && roomKind.workspace.required(null) && repoPath.trim() === ''
   // 有没有能开工的模型只看一份判断；一家都没装时也要拦住，而不是等服务端拒绝。
   const readiness = engineReadiness(engines, { requireApproval: !isChat })
   const noAskingEngine = !isChat && !readiness.canStart
@@ -108,10 +110,15 @@ function NewRoomDialog({
   // 成员、模型和验收方法都由规划师和验收员决定；建房只要求目标、文件夹和可用模型。
   const canStartStudio = !busy && goal.trim() !== '' && !needRepo && readiness.canStart &&
     (handoffGate === null ? true : handoffGate.ready) && !noAskingEngine
-  const startDisabled = busy || goal.trim() === '' || needRepo || !readiness.canStart || (!isChat && !canStartStudio)
+  const startDisabled = busy || goal.trim() === '' || needRepo || !readiness.canStart || (desktop && isChat) || (!isChat && !canStartStudio)
 
   const changeRepoPath = value => {
     setRepoPath(value)
+  }
+
+  const changeDesktop = next => {
+    setDesktop(next)
+    setError(null)
   }
 
   const chooseDirectory = async () => {
@@ -127,6 +134,9 @@ function NewRoomDialog({
   const chooseRoomType = next => {
     if (next === roomType) return
     setRoomType(next)
+    if (uiKindOfType(next).workspace.required(null) === false || uiKindOfType(next).teamMode === 'fixed') {
+      setDesktop(false)
+    }
     setError(null)
   }
 
@@ -172,7 +182,8 @@ function NewRoomDialog({
     try {
       const result = await onCreate(goal.trim(), roomKind.buildRequest({
         name: roomTitle,
-        repoPath: repoPath.trim(),
+        repoPath: desktop ? '' : repoPath.trim(),
+        ...(desktop ? { workspaceProvider: 'desktop' } : {}),
         handoffBrief,
         handoffBriefReviewed,
         sourceRoomId: seed?.sourceRoomId,
@@ -226,7 +237,18 @@ function NewRoomDialog({
       onChange: event => setNameDraft(event.target.value),
     }))
 
-  const workspaceField = roomKind.workspace.show(null) === false
+  const desktopField = isChat
+    ? null
+    : h('label', { className: 'crew-desktop-option' },
+      h('input', {
+        type: 'checkbox',
+        checked: desktop,
+        onChange: event => changeDesktop(event.target.checked),
+      }),
+      h('span', null, '在这台电脑上干活'),
+      h('span', { className: 'crew-field-hint' }, '它会看见并操作你的屏幕，随时可以停。'))
+
+  const workspaceField = roomKind.workspace.show(null) === false || desktop
     ? null
     : h('div', { className: 'crew-field' },
       h('b', null, roomKind.workspace.label),
@@ -256,8 +278,9 @@ function NewRoomDialog({
         sourceName: seed?.sourceName ?? '',
       }),
     nameField,
+    desktopField,
     workspaceField,
-    repoPath.trim() === ''
+    repoPath.trim() === '' || desktop
       ? null
       : h(WorkspaceMemory, {
         key: `memory-${repoPath.trim()}`,

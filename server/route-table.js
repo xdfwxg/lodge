@@ -1,6 +1,7 @@
 // 房间动作的唯一清单：HTTP 路由和路由扫描共用。新增动作只改这里，
 // 漏加会让 route-sweep 直接失败，而不是等到用户点到一个“没有这个接口”。
 export const ROOM_ACTIONS = Object.freeze([
+  'webhook',
   'messages',
   'rounds',
   'promise',
@@ -29,6 +30,7 @@ export const ROOM_ACTIONS = Object.freeze([
   'answer-card',
   'verify',
   'approvals',
+  'permissions',
   'add-member',
   'remove-member',
   'swap-body',

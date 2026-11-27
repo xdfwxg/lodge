@@ -67,15 +67,15 @@
 | 工具面按角色裁剪 | `server/crew/tool-scope.js` | `tool-scope.test.js` |
 | 只读阶段不能写/执行；验收员在只读副本里不能写 | `permission.js`、`kernel/live/approvals.js` | `permission.test.js`、`approval-bridge.test.js` |
 | 外部动作先问人 | `external-actions.js`、`kernel/live/action-gate.js` | `external-actions.test.js`、`approval-bridge.test.js` |
-| 交接棒由系统递，模型不决定下一棒 | 工作室由 `rooms/studio/relay.js` 决定，聊天室按公平顺序（每人先说一次，再立场互补，最后随机）；`@` 只在 `kernel/live/bus.js` 的 `send` 里生成；两种房间建房时基座 `followMentions: false` | `relay.test.js`、`live-turn-modules.test.js`、`live-chat-room.test.js`、`engine.test.js`、`room-create.test.js` |
+| 交接棒由系统递，模型不决定下一棒 | 工作室由 `rooms/studio/delivery/relay.js` 决定，聊天室按公平顺序（每人先说一次，再立场互补，最后随机）；`@` 只在 `kernel/live/bus.js` 的 `send` 里生成；两种房间建房时基座 `followMentions: false` | `relay.test.js`、`live-turn-modules.test.js`、`live-chat-room.test.js`、`engine.test.js`、`room-create.test.js` |
 | 非法状态跃迁写不进去 | `shared/states.js` + `assignments.js` + `kernel/round.js` | `states.test.js`、`assignments.test.js` |
 | 阶段最多 3 步、每一步要有交付物、成员增删有约束 | `rooms/create/input.js`、`member-add.js`、`member-remove.js` | `room-create.test.js`、`member-add.test.js`、`member-remove.test.js` |
-| 验收要有结果证据、覆盖表、亲手验过的工具痕迹和 quorum | `rooms/studio/gates.js`、`verifiers.js`、`coverage.js`、`verification-proof.js`、`runtime/result.js` | `gates.test.js`、`verifiers.test.js`、`coverage.test.js`、`verification-proof.test.js` |
-| 高风险默认双厂商验收；误放率高的模型不进验收员池 | `rooms/studio/apply-plan.js`、`shared/verifier-pool.js` | `apply-plan.test.js`、`verifier-pool.test.js` |
+| 验收要有结果证据、覆盖表、亲手验过的工具痕迹和 quorum | `rooms/studio/acceptance/gates.js`、`verifiers.js`、`coverage.js`、`verification-proof.js`、`runtime/result.js` | `gates.test.js`、`verifiers.test.js`、`coverage.test.js`、`verification-proof.test.js` |
+| 高风险默认双厂商验收；误放率高的模型不进验收员池 | `rooms/studio/plan/apply-plan.js`、`shared/verifier-pool.js` | `apply-plan.test.js`、`verifier-pool.test.js` |
 | 退回必须挂到一条会失败的检查；没有 check 的 blocker/major 降为 minor | `shared/judgment.js`、`gate/mcp-server.js`、`review-prompts.js` | `judgment.test.js`、`mcp-server.test.js` |
-| PASS 要带 diff 外风险；自动交付只认结构化判定 | `gate/mcp-server.js`、`rooms/studio/review.js` | `mcp-server.test.js`、`live-turn-modules.test.js` |
-| 判定缺失先催一次，再交给人 | `rooms/studio/review.js` | `live-turn-modules.test.js` |
-| 返工、预算、截止有上限 | `relay.js`、`auto-rework.js`、`rooms/studio/stage.js` | `relay.test.js`、`auto-rework.test.js`、`stage-timeout.test.js` |
+| PASS 要带 diff 外风险；自动交付只认结构化判定 | `gate/mcp-server.js`、`rooms/studio/acceptance/review/verdict.js`、`review/settle.js` | `mcp-server.test.js`、`live-turn-modules.test.js` |
+| 判定缺失先催一次，再交给人 | `rooms/studio/acceptance/review/verdict.js` | `live-turn-modules.test.js` |
+| 返工、预算、截止有上限 | `relay.js`、`auto-rework.js`、`rooms/studio/plan/stage.js` | `relay.test.js`、`auto-rework.test.js`、`stage-timeout.test.js` |
 | 引擎隔离、依赖方向、禁止编排框架 | `negative-list.test.js`、`layer-boundaries.test.js` | 同名测试 |
 | 状态词和用户文案不漂 | `shared/states.js` 静态扫描、`shared/product-copy.js` | `states.test.js`、`copy.test.js` |
 

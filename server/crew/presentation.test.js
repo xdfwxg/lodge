@@ -77,3 +77,10 @@ test('room events and state share one projected status and independence label', 
   assert.deepEqual(presented.capabilities, { dispatch: false })
   assert.equal(room.needsYou, undefined, 'projection does not mutate the stored room')
 })
+
+test('the webhook token never leaves the room, only whether it is on', () => {
+  const open = presentRoom({ id: 'room-wh', state: 'active', roomType: 'chat', webhook: { token: 'a'.repeat(48), createdAt: 1 } }, [])
+  assert.deepEqual(open.webhook, { enabled: true })
+  assert.equal(JSON.stringify(open).includes('a'.repeat(48)), false)
+  assert.deepEqual(presentRoom({ id: 'room-wh2', state: 'active', roomType: 'chat' }, []).webhook, { enabled: false })
+})

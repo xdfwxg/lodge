@@ -18,7 +18,6 @@ export const grantBrowserToAll = roster => (Array.isArray(roster) ? roster : [])
     ...member,
     mcp: [...(Array.isArray(member?.mcp) ? member.mcp : []), {
       server: BROWSER_MCP_SERVER_NAME,
-      scopes: ['read'],
       approval: 'ask',
     }],
   }

@@ -61,6 +61,21 @@ test('the acting member keeps its own changes', () => {
   }
 })
 
+test('with a parallel dispatch the guard does not blame the acting member for a teammate’s work', () => {
+  // 真房：两个执行官并行，队友正常写自己的副本，先收工的那位被说成“改到了”队友的工作副本。
+  const ctx = setup()
+  try {
+    beginWriteGuard(ctx.room)
+    writeFileSync(join(ctx.b, 'teammate.txt'), 'b is working\n')
+    assert.deepEqual(guardTurn(ctx.room, 'a', { others: false }), [])
+    // 关掉跨人对账之后，队友的下一笔改动仍然按正常路径算数（不是永久免疫）。
+    writeFileSync(join(ctx.b, 'teammate-2.txt'), 'b again\n')
+    assert.equal(guardTurn(ctx.room, 'a').length, 1)
+  } finally {
+    ctx.close()
+  }
+})
+
 test('planner and verifier worktrees are reverted even when they are acting', () => {
   const ctx = setup()
   ctx.room.members = [

@@ -1,11 +1,9 @@
 import { app, BrowserWindow, Menu, Notification, dialog, ipcMain, session, shell } from 'electron'
 import { execFileSync, spawn } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import {
-  baseBoxEnv, baseEntryOf, findBundledRuntimes, findNode, findPort, isBaseUp, runtimeRoots,
-  waitForBase, waitForHealth,
+  findBundledRuntimes, findPort, isBaseUp, probePort, runtimeRoots, waitForBase, waitForHealth,
 } from './launch.mjs'
 import { menuTemplate } from './menu.mjs'
 import { attentionDecision, roomsPayload } from './attention.mjs'
@@ -36,10 +34,40 @@ let window = null
 let serverProcess = null
 let serverPort = null
 let baseProcess = null
-let baseDir = null
 let baseUrl = process.env.CREW_BASE_URL ?? ''
 let quitting = false
 let serverRestarts = 0
+let serverProbe = null
+
+// 连续两次拒连（约 4 秒）就认定服务半死：杀掉子进程，走既有的一次重启。
+// 监听被内核悄悄关掉、而进程内信号全错的时候，只有外面看得见。
+const watchServerPort = port => {
+  stopWatchingServer()
+  let misses = 0
+  const timer = setInterval(() => {
+    void probePort(port).then(state => {
+      if (state !== 'refused') {
+        misses = 0
+        return
+      }
+      misses += 1
+      if (misses < 2) return
+      misses = 0
+      log(`server port ${port} refused twice from outside; restarting`)
+      if (serverProcess !== null && serverProcess.exitCode === null && serverProcess.signalCode === null) {
+        serverProcess.kill('SIGKILL')
+      }
+    }).catch(() => {})
+  }, 2_000)
+  timer.unref?.()
+  serverProbe = timer
+}
+
+const stopWatchingServer = () => {
+  if (serverProbe === null) return
+  clearInterval(serverProbe)
+  serverProbe = null
+}
 let runtimeLogins = []
 let menuRooms = []
 let lastNeedsCount = 0
@@ -101,81 +129,28 @@ const bundledRuntimes = () => findBundledRuntimes({
   }),
 })
 
-const findBaseDir = () => {
-  const preferred = [
-    process.env.LODGE_BASE_DIR,
-    readSettings().baseDir,
-    join(process.resourcesPath, 'base'),
-    join(app.getAppPath(), '..', 'crew-chat-base'),
-    join(homedir(), 'workspace', 'crew-chat-base'),
-  ].filter(item => typeof item === 'string' && item !== '')
-  for (const candidate of preferred) {
-    if (baseEntryOf(candidate) !== null) return candidate
-  }
-  return null
+// 只有这一种基座：显式给了二进制就用它；打包版的二进制放 resources/base-rs。
+// 找不到就启动失败并说清怎么构建，不再偷偷换实现。
+const rustBasePath = () => {
+  const explicit = process.env.LODGE_BASE_RS_BIN
+  if (typeof explicit === 'string' && explicit !== '' && existsSync(explicit)) return explicit
+  const bundled = join(process.resourcesPath, 'base-rs', 'lodge-base-slice')
+  return existsSync(bundled) ? bundled : null
 }
 
-const chooseBaseDir = async () => {
-  const choice = await dialog.showMessageBox({
-    type: 'warning',
-    buttons: ['选择基座目录', '退出'],
-    defaultId: 0,
-    cancelId: 1,
-    title: 'Lodge 需要本地基座',
-    message: 'Lodge 需要 crew-chat-base 才能运行真实 CLI 回合。',
-    detail: '选择已经安装好的 crew-chat-base 目录。它负责 driver、CLI 和本地运行时；Lodge 不会修改它。',
-  })
-  if (choice.response !== 0) return null
-  const picked = await dialog.showOpenDialog({
-    title: '选择 crew-chat-base 目录',
-    properties: ['openDirectory', 'createDirectory'],
-  })
-  const dir = picked.filePaths?.[0] ?? null
-  if (dir !== null) writeSettings({ baseDir: dir })
-  return dir
-}
-
-const startBase = async dir => {
-  baseDir = dir
-  const entry = baseEntryOf(dir)
-  if (entry === null) throw new Error('基座目录里没有可运行的入口')
-  let node = process.execPath
-  let args = ['--experimental-strip-types', entry.file]
-  const bundled = entry.kind === 'bundled'
-  if (bundled) {
-    args = [entry.file]
-  } else {
-    node = findNode()
-    if (node === null) {
-      await dialog.showMessageBox({
-        type: 'error',
-        buttons: ['退出'],
-        message: '没有找到 Node.js',
-        detail: '这个基座是源码目录，需要 Node.js 24 或更高版本。安装后重启 Lodge。',
-      })
-      return null
-    }
-  }
+const startRustBase = async () => {
+  const binary = rustBasePath()
+  if (binary === null) return null
   const port = await findPort(DEFAULT_BASE_PORT)
-  const baseData = join(app.getPath('userData'), 'base-data')
+  const baseData = join(app.getPath('userData'), 'base-data-rs')
   mkdirSync(baseData, { recursive: true })
-  const extraPath = [
-    ...bundledRuntimes().map(runtime => runtime.dir),
-    process.env.OMB_EXTRA_PATH,
-  ].filter(Boolean).join(delimiter)
-  const child = spawn(node, [
-    ...args,
-    'serve',
-    '--port', String(port),
-    '--data-dir', baseData,
-  ], {
-    cwd: dir,
+  const roots = process.env.CREW_WORKSPACE_ROOT
+  const child = spawn(binary, ['--port', String(port), '--db', join(baseData, 'base.db')], {
     env: {
       ...process.env,
-      ...(bundled ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
-      LODGE_BASE_DIR: dir,
-      ...baseBoxEnv(),
-      ...(extraPath === '' ? {} : { OMB_EXTRA_PATH: extraPath }),
+      // 受限执行只接受声明过的工作根；没设就用基座与 Lodge 共同的那条默认（~/CrewWorkspaces）。
+      ...(typeof roots === 'string' && roots !== '' ? { LODGE_WORK_ROOTS: roots } : {}),
+      LODGE_SANDBOX: process.env.LODGE_SANDBOX ?? 'on',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -198,13 +173,14 @@ const startBase = async dir => {
 }
 
 const ensureBase = async () => {
-  // 只认显式配置的基座；默认端口上可能是另一个 OpenMausBot 桌面应用，
-  // 它的数据与信任策略都不属于 Lodge，不能悄悄接管。
+  // 只认显式配置的基座；默认端口上可能是别的应用，数据与信任策略都不属于 Lodge。
   if (baseUrl !== '' && await isBaseUp(baseUrl)) return baseUrl
-  let dir = findBaseDir()
-  if (dir === null) dir = await chooseBaseDir()
-  if (dir === null) return null
-  return startBase(dir)
+  if (rustBasePath() === null) {
+    throw new Error(
+      '没有找到基座可执行文件：打包版应在 Resources/base-rs/lodge-base-slice，开发时先跑 npm run base:rs:build，或用 LODGE_BASE_RS_BIN 指定。',
+    )
+  }
+  return startRustBase()
 }
 
 const checkCli = async url => {
@@ -288,6 +264,7 @@ const startServer = async () => {
   })
   serverProcess.stderr.on('data', chunk => log(`err: ${chunk.toString().trimEnd()}`))
   serverProcess.on('exit', code => {
+    stopWatchingServer()
     log(`server exited: ${code}`)
     if (quitting) return
     if (serverRestarts < 1) {
@@ -311,6 +288,7 @@ const startServer = async () => {
   if (!healthy) {
     throw new Error(`Lodge 服务没有在端口 ${serverPort} 起来。日志：${logFile}`)
   }
+  watchServerPort(serverPort)
   return serverPort
 }
 
@@ -571,6 +549,7 @@ if (!gotLock) {
   })
   app.on('before-quit', () => {
     quitting = true
+    stopWatchingServer()
     stopServer()
   })
 }

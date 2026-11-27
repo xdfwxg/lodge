@@ -2,7 +2,12 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createAdminActions } from './admin.js'
 
-const setup = (over, { retireRoomBots = async () => {} } = {}) => {
+const setup = (over, {
+  retireRoomBots = async () => {},
+  patches = [],
+  patchMemberBot = async (ref, input) => { patches.push({ ref, input }) },
+  health = async () => ({ ok: true, networkModes: ['proxy', 'model', 'none'] }),
+} = {}) => {
   let room = {
     id: 'room-1',
     name: '一间房',
@@ -16,8 +21,14 @@ const setup = (over, { retireRoomBots = async () => {} } = {}) => {
   const stopped = []
   const deleted = []
   const cancelled = []
+  const messages = []
   const actions = createAdminActions({
-    store: { cancelWork: id => { cancelled.push(id) } },
+    store: {
+      cancelWork: id => { cancelled.push(id) },
+      appendMessage: (id, message) => { messages.push(message) },
+      readRoom: () => room,
+    },
+    engine: { patchMemberBot, health },
     live: {
       isAttached: () => false,
       detach: () => {},
@@ -47,8 +58,145 @@ const setup = (over, { retireRoomBots = async () => {} } = {}) => {
       return true
     },
   })
-  return { actions, room: () => room, stopped, deleted, cancelled }
+  return { actions, room: () => room, stopped, deleted, cancelled, messages, patches }
 }
+
+test('a room policy reaches every member and is saved', async () => {
+  const ctx = setup({
+    members: [{
+      id: 'lead',
+      name: '规划师',
+      role: 'lead',
+      roleKind: 'planner',
+      station: '拆解',
+      permissions: { read: true },
+      body: { ref: 'bot-lead', engine: 'pi', model: 'm', spec: { prompt: '你是规划师', mcp: [] } },
+    }],
+  })
+  const result = await ctx.actions.permissions({
+    room: ctx.room(),
+    readBody: async () => ({ policy: { files: 'confirm', network: 'model', external: 'ask' } }),
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.patches.map(item => item.ref), ['bot-lead'])
+  assert.equal(ctx.patches[0].input.approval, 'ask')
+  assert.equal(ctx.patches[0].input.network, 'model')
+  assert.equal(ctx.room().policy.network, 'model')
+  assert.equal(ctx.room().members[0].approval, 'ask')
+  assert.match(ctx.messages.at(-1).text, /权限调好了/)
+})
+
+test('model-only is refused when the base cannot enforce it', async () => {
+  const ctx = setup({
+    members: [{
+      id: 'lead',
+      name: '规划师',
+      role: 'lead',
+      roleKind: 'planner',
+      station: '拆解',
+      permissions: { read: true },
+      body: { ref: 'bot-lead', engine: 'pi', model: 'm', spec: { prompt: '你是规划师', mcp: [] } },
+    }],
+  }, { health: async () => ({ ok: true, networkModes: ['proxy', 'none'] }) })
+  const result = await ctx.actions.permissions({
+    room: ctx.room(),
+    readBody: async () => ({ policy: { network: 'model' } }),
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /还不支持/)
+  assert.deepEqual(ctx.patches, [])
+  assert.equal(ctx.room().policy, undefined)
+})
+
+const memberOf = engine => ({
+  id: 'lead',
+  name: '规划师',
+  role: 'lead',
+  roleKind: 'planner',
+  station: '拆解',
+  permissions: { read: true },
+  body: { ref: 'bot-lead', engine, model: 'm', spec: { prompt: '你是规划师', mcp: [] } },
+})
+
+test('an engine that cannot scope tools keeps asking even when the room says direct', async () => {
+  const claude = setup({ members: [memberOf('claude')] })
+  const first = await claude.actions.permissions({
+    room: claude.room(),
+    readBody: async () => ({ policy: { files: 'direct', network: 'proxy', external: 'auto' } }),
+  })
+  assert.equal(first.ok, true)
+  assert.equal(claude.patches[0].input.approval, 'ask')
+  assert.equal(claude.room().members[0].approval, 'ask')
+
+  const pi = setup({ members: [memberOf('pi')] })
+  const second = await pi.actions.permissions({
+    room: pi.room(),
+    readBody: async () => ({ policy: { files: 'direct', network: 'proxy', external: 'auto' } }),
+  })
+  assert.equal(second.ok, true)
+  assert.equal(pi.patches[0].input.approval, 'auto')
+})
+
+test('model-only is refused when a member engine cannot scope the network', async () => {
+  const ctx = setup({ members: [memberOf('claude')] })
+  const result = await ctx.actions.permissions({
+    room: ctx.room(),
+    readBody: async () => ({ policy: { network: 'model' } }),
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /不支持/)
+  assert.deepEqual(ctx.patches, [])
+})
+
+test('a member that cannot be patched leaves the old policy in place', async () => {
+  const ctx = setup({
+    members: [{
+      id: 'lead',
+      name: '规划师',
+      role: 'lead',
+      roleKind: 'planner',
+      station: '拆解',
+      permissions: { read: true },
+      body: { ref: 'bot-lead', engine: 'pi', model: 'm', spec: { prompt: '你是规划师', mcp: [] } },
+    }],
+  }, { patchMemberBot: async () => { throw new Error('基座没应答') } })
+  const result = await ctx.actions.permissions({
+    room: ctx.room(),
+    readBody: async () => ({ policy: { external: 'ask' } }),
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /有成员没更新/)
+  assert.equal(ctx.room().policy, undefined)
+})
+
+test('a partial patch rolls the patched members back', async () => {
+  const members = [
+    { ...memberOf('pi'), id: 'a', name: '甲', body: { ref: 'bot-a', engine: 'pi', model: 'm', spec: { prompt: 'a', mcp: [] } } },
+    { ...memberOf('pi'), id: 'b', name: '乙', body: { ref: 'bot-b', engine: 'pi', model: 'm', spec: { prompt: 'b', mcp: [] } } },
+  ]
+  const seen = []
+  const ctx = setup({
+    members,
+    policy: { files: 'direct', network: 'proxy', external: 'ask' },
+  }, {
+    patchMemberBot: async (ref, input) => {
+      seen.push({ ref, approval: input.approval })
+      if (ref === 'bot-b' && input.approval === 'auto') throw new Error('基座没应答')
+    },
+  })
+  const result = await ctx.actions.permissions({
+    room: ctx.room(),
+    readBody: async () => ({ policy: { files: 'direct', network: 'proxy', external: 'auto' } }),
+  })
+  assert.equal(result.ok, false)
+  // 甲先落到 auto，乙失败后把甲退回原来的 ask；房间策略保持不变。
+  assert.deepEqual(seen, [
+    { ref: 'bot-a', approval: 'auto' },
+    { ref: 'bot-b', approval: 'auto' },
+    { ref: 'bot-a', approval: 'ask' },
+  ])
+  assert.equal(ctx.room().policy.external, 'ask')
+})
 
 test('archiving stops a round that the stale menu snapshot could not see', async () => {
   const ctx = setup({ workRound: { status: 'active' } })

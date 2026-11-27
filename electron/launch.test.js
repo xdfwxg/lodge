@@ -5,38 +5,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  baseBoxEnv, baseEntryOf, findBundledRuntimes, findNode, findPort, isBaseUp, readRuntime, runtimeRoots, waitForHealth,
+  findBundledRuntimes, findPort, isBaseUp, readRuntime, runtimeRoots, waitForHealth,
 } from './launch.mjs'
 
 const temp = () => mkdtempSync(join(tmpdir(), 'lodge-electron-launch-'))
-
-test('the app starts its base with the bot box and sibling isolation on macOS', () => {
-  assert.deepEqual(baseBoxEnv({ env: {}, platform: 'darwin' }), {
-    OMB_BOT_BOX: '1',
-    OMB_BOT_BOX_DENY_SIBLINGS: '1',
-  })
-  // 用户显式关掉时不再强开；另一个开关仍取默认。
-  assert.deepEqual(baseBoxEnv({ env: { OMB_BOT_BOX: '0' }, platform: 'darwin' }), {
-    OMB_BOT_BOX: '0',
-    OMB_BOT_BOX_DENY_SIBLINGS: '1',
-  })
-  assert.deepEqual(baseBoxEnv({ env: {}, platform: 'linux' }), {})
-})
-
-test('a bundled base wins over a source checkout', () => {
-  const dir = temp()
-  try {
-    assert.equal(baseEntryOf(dir), null)
-    mkdirSync(join(dir, 'server'))
-    writeFileSync(join(dir, 'server', 'openmausbot.ts'), '')
-    assert.deepEqual(baseEntryOf(dir), { kind: 'source', file: join(dir, 'server', 'openmausbot.ts') })
-    mkdirSync(join(dir, 'dist-server'))
-    writeFileSync(join(dir, 'dist-server', 'openmausbot.js'), '')
-    assert.deepEqual(baseEntryOf(dir), { kind: 'bundled', file: join(dir, 'dist-server', 'openmausbot.js') })
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
 
 test('runtime manifests must stay inside their own directory', () => {
   const root = temp()
@@ -95,18 +67,6 @@ test('runtime roots put explicit directories before the app bundle', () => {
   }), ['/repo/build/runtimes'])
 })
 
-test('findNode prefers an explicit binary, then PATH', () => {
-  assert.equal(findNode({
-    env: { LODGE_NODE: '/explicit/node' },
-    exists: path => path === '/explicit/node',
-  }), '/explicit/node')
-  assert.equal(findNode({ env: {}, exists: () => false, home: '/home/u', exec: () => '/path/node\n' }), '/path/node')
-  assert.equal(findNode({
-    env: {},
-    exists: () => false,
-    exec: () => { throw new Error('missing') },
-  }), null)
-})
 
 test('a port and health probe are real, not assumed', async () => {
   const port = await findPort(47_100)
@@ -139,5 +99,20 @@ test('isBaseUp requires a base-shaped instance list', async () => {
     assert.equal(await isBaseUp(''), false)
   } finally {
     await new Promise(resolve => server.close(resolve))
+  }
+})
+
+test('the supervisor judges liveness from outside: open port vs refused port', async () => {
+  const { probePort } = await import('./launch.mjs')
+  const { createServer: createNetServer } = await import('node:net')
+  const server = createNetServer(socket => socket.end())
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const port = server.address().port
+  try {
+    assert.equal(await probePort(port), 'open', '端口在接连接')
+    await new Promise(resolve => server.close(resolve))
+    assert.equal(await probePort(port), 'refused', '端口没了，外面才判得出来')
+  } finally {
+    if (server.listening) await new Promise(resolve => server.close(resolve))
   }
 })

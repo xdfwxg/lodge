@@ -1,4 +1,5 @@
 import { CHAT_PHASE, ROOM_STATE, ROUND_STATUS, STAGE_STATE } from '../../../shared/states.js'
+import { ROOM_POLICY_DEFAULTS } from '../../../shared/room-policy.js'
 
 export const SAMPLE_ROOM_ID = 'room-sample'
 export const SAMPLE_CHAT_ROOM_ID = 'room-sample-chat'
@@ -50,6 +51,7 @@ const STEPS = [
 export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   id: SAMPLE_ROOM_ID,
   kind: 'room',
+  policy: { ...ROOM_POLICY_DEFAULTS },
   name: '示例：把《羽仙记》的结尾改得更看得见',
   goal: '把《羽仙记》的结尾改得更看得见：只改一处，用动作代替旁白',
   templateId: 'custom',

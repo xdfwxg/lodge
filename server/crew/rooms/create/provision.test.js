@@ -6,7 +6,8 @@ const instance = (id, engine, available = true, images = false) => ({
   id,
   engine,
   available,
-  capabilities: { images },
+  models: { default: `${id}-model`, options: [] },
+  capabilities: { images, approvalReview: true, tools: true },
 })
 
 test('the verifier gets eyes before a second vendor', () => {
@@ -39,4 +40,13 @@ test('unavailable instances are never chosen', () => {
     instance('pi', 'pi', false, true),
   ], new Set())
   assert.equal(chosen, null)
+})
+
+test('an engine that cannot run tools or ask is never picked for review', () => {
+  const chosen = pickVerifierEngine([
+    { ...instance('claude', 'claude', true, true), capabilities: { images: true, approvalReview: false, tools: false } },
+    instance('pi', 'pi', true, false),
+    instance('openai', 'openai', true, false),
+  ], new Set(['pi']))
+  assert.equal(chosen, 'openai', 'the tool-less engine is skipped even though it has vision')
 })

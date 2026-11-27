@@ -443,6 +443,18 @@ export function createStore() {
       } catch {}
       return { ok: true, room: data.room, warning: data.warning ?? null }
     },
+    setRoomPolicy: async (id, policy) => {
+      const data = await post(`/api/rooms/${id}/permissions`, { policy })
+      if (data?.room === undefined) return { ok: false, error: failureText('权限没能保存') }
+      await load()
+      return { ok: true, room: data.room }
+    },
+    // 外部事件：开启是幂等的；地址只在开启/换地址时回来，界面不存钥匙。
+    roomWebhook: async (id, action) => {
+      const data = await post(`/api/rooms/${id}/webhook`, { action })
+      if (data === null || typeof data?.enabled !== 'boolean') return { ok: false, error: failureText('没能改外部事件') }
+      return { ok: true, enabled: data.enabled, path: data.path ?? null }
+    },
     renameRoom: async (id, name) => {
       const data = await post(`/api/rooms/${id}/rename`, { name })
       if (data?.room === undefined) return { ok: false, error: failureText('名字没能改过来') }

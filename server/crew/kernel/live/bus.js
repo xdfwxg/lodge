@@ -319,14 +319,26 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       unsubscribe: null,
       sync: () => sync(entry),
     }
+    // 成员的私有房间（盲评、并行派发）有自己的线程：权限卡和回合必须送进房间，
+    // 但文字不投进时间线。只订线程，不再开第二条事件流。
+    const privateRefs = (room.members ?? [])
+      .map(member => member.body?.sessionRef)
+      .filter(ref => typeof ref === 'string' && ref !== '' && ref !== chat.sessionRef)
     entry.chat.unsubscribe = engine.subscribe({
       roomId: chat.id,
       sessionRef: chat.sessionRef,
+      sessionRefs: privateRefs,
       onState: state => {
         if (!state.connected) return
-        void sync(entry).catch(error => {
-          systemNotice({ store, roomId: room.id, text: '聊天记录没能对上；待处理。', error })
-        })
+        void sync(entry).then(
+          () => { entry.chat.syncFailed = false },
+          error => {
+            // 断线重连会一次次回到“已连接”再同步失败；时间线只说一句，恢复后清零。
+            if (entry.chat.syncFailed === true) return
+            entry.chat.syncFailed = true
+            systemNotice({ store, roomId: room.id, text: '聊天记录没能对上；待处理。', error })
+          },
+        )
       },
       onEvent: event => {
         if (event.type === 'room') {
@@ -342,6 +354,32 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         const message = event.message
         if (message === undefined) return
         const current = store.readRoom(room.id) ?? room
+        if (event.private === true) {
+          // 私有线程：只处理权限卡和回合，文字留在私有线程里。
+          if (message.card?.requestType === 'permission') {
+            if (!supportsRuntime(engine, 'approvals')) return
+            const memberId = memberForRef(current, message.authorRef)
+            // 卡长在私有线程上：回答也要回到那条线程，否则基座会说“这张卡不属于这个线程”。
+            const cardChat = typeof event.sessionRef === 'string' && event.sessionRef !== ''
+              ? { ...chat, sessionRef: event.sessionRef }
+              : chat
+            void onPermission(entry, memberId, message, cardChat)
+            return
+          }
+          if (message.kind === 'activity') {
+            onTool?.(entry, current, message)
+            entry.turns?.trackTool?.(message)
+            return
+          }
+          if (message.kind === 'turn') {
+            entry.turns?.trackTool?.(message)
+            onTurn?.(entry, current, message)
+            pauseForMemberFailure(store, entry, message)
+            return
+          }
+          pauseForMemberFailure(store, entry, message)
+          return
+        }
         if (message.card?.requestType === 'permission') {
           // 权限卡是可选能力：runtime 不支持时不接管，也不把卡片投进时间线。
           if (!supportsRuntime(engine, 'approvals')) return

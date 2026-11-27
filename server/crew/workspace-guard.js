@@ -33,7 +33,8 @@ export const unreturnedReadOnlyViolations = ({ room, memberId, violations }) => 
 )
 
 // 只对账“别人”的工作树；当前说话人的改动是本职，下一回合会连同基线一起更新。
-export const guardTurn = (room, actingMemberId) => {
+// 并行派发时别人的树本来就在变，跨人对账会把队友的正常改动算成越界；这时只看说话人自己的树。
+export const guardTurn = (room, actingMemberId, { others = true } = {}) => {
   if (room?.workspace?.provider !== 'git') return []
   const current = snapshotWorktrees(room)
   if (current.size === 0) return []
@@ -46,6 +47,7 @@ export const guardTurn = (room, actingMemberId) => {
   for (const [memberId, now] of current) {
     // 规划师和验收员的副本只读；即使这一回合说话的是他们，也不能把改动留在里面。
     if (memberId === actingMemberId && !isReadOnlyRole(room, memberId)) continue
+    if (!others && memberId !== actingMemberId) continue
     const before = baseline.get(memberId)
     if (before === undefined) continue
     if (now.head === before.head && now.status === before.status) continue

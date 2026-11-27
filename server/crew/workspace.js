@@ -1,6 +1,7 @@
 import * as directWorkspace from './workspace-direct.js'
 import * as gitWorkspace from './workspace-git.js'
 import * as plainWorkspace from './workspace-plain.js'
+import * as desktopWorkspace from './workspace-desktop.js'
 
 // Workspace 端口：业务只认 provider，不直接调用 git。git 是默认实现。
 const providers = new Map()
@@ -12,6 +13,7 @@ export const registerWorkspaceProvider = (id, provider) => {
 registerWorkspaceProvider(gitWorkspace.id, gitWorkspace)
 registerWorkspaceProvider(directWorkspace.id, directWorkspace)
 registerWorkspaceProvider(plainWorkspace.id, plainWorkspace)
+registerWorkspaceProvider(desktopWorkspace.id, desktopWorkspace)
 
 export const defaultWorkspace = gitWorkspace
 

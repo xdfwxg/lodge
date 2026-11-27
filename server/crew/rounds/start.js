@@ -1,6 +1,6 @@
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { fail, ok } from '../result.js'
-import { normalizePlan, startInitialStage, studioConstraints } from '../rooms/studio/facade.js'
+import { normalizePlan, startInitialStage, studioConstraints } from '../rooms/studio/runtime/facade.js'
 import { buildStages } from '../room-types/studio.js'
 import { ROOM_STATE } from '../../../shared/states.js'
 import { buildRound, composeRoundView, shortTitleOf } from './record.js'

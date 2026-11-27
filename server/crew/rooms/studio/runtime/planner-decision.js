@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { memberDisplayName } from '../../../member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from '../../../internal-prompts.js'
 import { sanitizeUntrusted } from '../../../../../shared/untrusted-text.js'
-import { appendHandoffProjection } from '../projection.js'
+import { appendHandoffProjection } from './projection.js'
 import { judgmentAnchorOf, judgmentOf, normalizeJudgment } from '../../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../../shared/gate.js'
 import {
@@ -12,7 +12,7 @@ import {
 } from '../../../assignments.js'
 import { leadMemberOf, workerIds } from '../../../room-members.js'
 import { systemNotice } from '../../../notices.js'
-import { MAX_STAGE_REWORKS } from '../relay.js'
+import { MAX_STAGE_REWORKS } from '../delivery/relay.js'
 import { PLANNER_DECISION_KIND } from '../../../../../shared/states.js'
 
 export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, plannerNudges, schedule, expireCards = null }) => {

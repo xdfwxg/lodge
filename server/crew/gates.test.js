@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { gateFor } from './rooms/studio/gates.js'
+import { gateFor } from './rooms/studio/acceptance/gates.js'
 
 const verifier = (id, name) => ({ id, name, role: 'verifier', roleKind: 'verifier', permissions: { read: true, exec: true, write: false }, toolSurface: ['read', 'exec'], skills: [], mcp: [], body: { kind: 'base', ref: `bot-${id}`, name } })
 const room = (over = {}) => ({
@@ -67,15 +67,14 @@ test('an out-of-package change that cannot be reverted blocks confirmation', () 
   assert.equal(reverted.ok, true, reverted.error)
 })
 
-test('a proof that misses a clause step or has a red step cannot be confirmed', () => {
+test('a proof with a red step or a red entry cannot be confirmed', () => {
   const r = room()
-  const incomplete = gateFor(r, 1, [
-    evidence(1, 10, { proof: { status: 'incomplete', exit: 0, missingClauses: ['export'] } }),
+  const redEntry = gateFor(r, 1, [
+    evidence(1, 10, { proof: { status: 'failed', exit: 1, error: 'entry 退出 1' } }),
     verdict(1, 11, true, { evidenceId: 'e-10' }),
   ])
-  assert.equal(incomplete.ok, false)
-  assert.match(incomplete.error, /没有覆盖每条契约要求/)
-  assert.match(incomplete.error, /export/)
+  assert.equal(redEntry.ok, false)
+  assert.match(redEntry.error, /没跑绿/)
   const failed = gateFor(r, 1, [
     evidence(1, 10, { proof: { status: 'failed', exit: 0, error: '证明的 step 没跑绿：npm test' } }),
     verdict(1, 11, true, { evidenceId: 'e-10' }),
@@ -138,22 +137,20 @@ test('a newer result invalidates PASSes that pointed at the older one', () => {
   assert.match(gate.error, /没有回报|验收通过|还没有交回结果/)
 })
 
-test('a PASS without an outside-diff risk cannot be signed off', () => {
+test('the outside-diff risk is a judgement-contract field, not a separate sign-off gate', () => {
+  // 判定契约（工具与文本 json 两条通道）已经要求 PASS 带 outsideDiff；
+  // 签收只看验收结论本身，不再另立一条会把交付卡住的格式检查。
   const judgment = {
     version: 1,
     type: 'verdict',
     decision: 'pass',
     reason: '都对',
     findings: [],
-    outsideDiff: '',
+    outsideDiff: '无',
     stage: 1,
     source: 'gate',
   }
-  const missing = gateFor(room(), 1, [evidence(), verdict(1, 11, true, { evidenceId: 'e-10', judgment })])
-  assert.equal(missing.ok, false)
-  assert.match(missing.error, /diff 之外/)
-  const withRisk = verdict(1, 12, true, { evidenceId: 'e-10', judgment: { ...judgment, outsideDiff: '无' } })
-  assert.equal(gateFor(room(), 1, [evidence(), withRisk]).ok, true)
+  assert.equal(gateFor(room(), 1, [evidence(), verdict(1, 11, true, { evidenceId: 'e-10', judgment })]).ok, true)
 })
 
 test('a room without verifiers is signed off on result evidence', () => {

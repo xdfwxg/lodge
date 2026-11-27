@@ -230,6 +230,10 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-promise-control::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
 .crew-promise-control::-webkit-calendar-picker-indicator:hover{opacity:.8}
 .crew-promise-form .crew-goal-input{border-color:var(--bt-line-2);border-radius:10px;background:var(--bt-shade-1);font-size:var(--bt-text-label)}
+.crew-dialog.crew-event-dialog{width:min(560px,100%)}
+.crew-event-dialog .crew-dialog-body{gap:12px;padding:18px 22px 20px}
+.crew-event-dialog .crew-dialog-foot{padding:0 22px 20px;align-items:center}
+.crew-event-dialog .crew-event-link{width:100%;height:38px;font-family:var(--bt-font-mono);font-size:var(--bt-text-helper)}
 .crew-promise-form textarea.crew-goal-input{min-height:84px;padding:10px 12px;resize:vertical}
 @media (max-width:760px){.studio-topbar{padding:12px 14px 0}.crew-promise{margin:8px 14px;width:auto}}
 .studio-delivery-more-title{margin:0;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:600;color:var(--bt-ink-3)}
@@ -1016,3 +1020,30 @@ body[data-side=rail] .crew-side-me{justify-content:center;padding:8px 0}
 .crew-profile-foot{border-top:0;padding:14px 20px 18px;background:transparent}
 
 /* The only new-room entry: a small popover, not another full surface. */
+
+/* 房间权限：一屏三组单选，选中态靠描边和底色，不靠放大字号。 */
+.crew-permission{width:min(520px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow:auto}
+.crew-permission-groups{display:flex;flex-direction:column;gap:16px;padding:4px 2px 8px}
+.crew-permission-group{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;border:0}
+.crew-permission-group legend{padding:0;font-weight:600;font-size:var(--bt-text-label)}
+.crew-permission-hint{margin:0;color:var(--bt-ink-3);font-size:var(--bt-text-helper)}
+.crew-permission-options{display:flex;flex-wrap:wrap;gap:8px}
+.crew-permission-option{display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid var(--bt-line-2);border-radius:9px;cursor:pointer;font-size:var(--bt-text-label)}
+.crew-permission-option[data-checked=true]{border-color:var(--bt-accent);background:var(--bt-accent-wash);font-weight:600}
+.crew-permission-option input{margin:0}
+.crew-side-members-policy{margin:6px 2px 0;color:var(--bt-ink-3);font-size:var(--bt-text-helper)}
+
+.crew-desktop-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 14px;
+}
+.crew-desktop-option input {
+  margin-top: 3px;
+}
+.crew-desktop-option .crew-field-hint {
+  display: block;
+  margin: 2px 0 0;
+}

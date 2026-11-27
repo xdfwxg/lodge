@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createServiceStages } from './rooms/studio/service-stages.js'
-import { normalizeTestRoom, withAssignments } from './testing/room.js'
+import { createServiceStages } from './rooms/studio/plan/service-stages.js'
+import { withAssignments } from './testing/room.js'
 
-const room = (over = {}) => normalizeTestRoom({
+const room = (over = {}) => ({
   id: 'room-1',
   kind: 'room',
   state: 'active',
@@ -13,14 +13,14 @@ const room = (over = {}) => normalizeTestRoom({
   openQuestion: null,
   verifiers: [],
   workers: ['worker'],
-  seatNames: { worker: '执行者' },
   usage: { costMicroUsd: 0, budgetMicroUsd: 0 },
   stages: [
     { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'ship it', tasks: [] },
     { title: '验收与结论', kind: 'decision', state: 'pending' },
   ],
-  seatSpecs: [{ id: 'worker', name: '执行者', role: 'worker' }],
-  seatBots: { worker: 'bot-worker' },
+  members: [
+      { id: 'worker', name: '执行者', role: 'worker', roleKind: 'executor', body: { kind: 'base', name: '执行者' } },
+    ],
   ...over,
 })
 

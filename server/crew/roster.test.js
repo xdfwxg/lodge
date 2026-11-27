@@ -34,22 +34,22 @@ test('an executor without its own worktree fails closed', () => {
 
 test('a custom worker keeps a browser grant from the room request', () => {
   const roster = rosterFromRoles([{ role: 'worker', name: '研究员', mcp: ['chrome-devtools'] }])
-  assert.deepEqual(roster[0].mcp, [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }])
+  assert.deepEqual(roster[0].mcp, [{ server: 'chrome-devtools', approval: 'ask' }])
 })
 
 test('an executor cannot hold non-browser external tools', () => {
   const bad = ROLES.map(member => member.id === 'executor'
-    ? { ...member, mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }] }
+    ? { ...member, mcp: [{ server: 'github', approval: 'ask' }] }
     : member)
   assert.throws(() => validateRoster(bad), /有写权限的成员不能挂外部工具/)
 })
 
 test('planner cannot hold external tools other than the read-only browser', () => {
   const bad = ROLES.map(member => member.id === 'planner'
-    ? { ...member, mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }] }
+    ? { ...member, mcp: [{ server: 'github', approval: 'ask' }] }
     : member)
   assert.throws(() => validateRoster(bad), /规划师不能挂外部工具/)
-  const browser = { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }
+  const browser = { server: 'chrome-devtools', approval: 'ask' }
   const allowed = ROLES.map(member => (
     member.role === 'lead' || member.role === 'verifier' ? { ...member, mcp: [browser] } : member
   ))
@@ -58,14 +58,14 @@ test('planner cannot hold external tools other than the read-only browser', () =
 
 test('mcp grants must name a server, not carry a URL or credential', () => {
   const bad = ROLES.map(member => member.id === 'executor'
-    ? { ...member, mcp: [{ server: 'https://mcp.example.com?token=x', scopes: ['read'], approval: 'ask' }] }
+    ? { ...member, mcp: [{ server: 'https://mcp.example.com?token=x', approval: 'ask' }] }
     : member)
   assert.throws(() => validateRoster(bad), /mcp server/)
 })
 
 test('external writes require approval', () => {
   const bad = ROLES.map(member => member.id === 'executor'
-    ? { ...member, mcp: [{ server: 'github', scopes: ['write'], approval: 'allow' }] }
+    ? { ...member, mcp: [{ server: 'github', approval: 'allow' }] }
     : member)
   assert.throws(() => validateRoster(bad), /external tools require approval/)
 })

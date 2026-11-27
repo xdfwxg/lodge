@@ -36,6 +36,7 @@ export const mentionNamesOf = room => [
 export const resolveMember = (room, byId, message) => (
   byId[message.authorId]
   ?? (message.authorId === 'lodge' ? { id: 'lodge', name: hostLabelOf(room), title: '' } : undefined)
+  ?? (message.authorId === 'webhook' ? { id: 'webhook', name: '外部事件', title: '' } : undefined)
   ?? (message.authorId === 'system' ? { name: '系统', title: '' } : undefined)
 )
 

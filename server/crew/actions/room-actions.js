@@ -4,7 +4,7 @@ import { createRunActions } from './room/run.js'
 import { createAdminActions } from './room/admin.js'
 import { createRoundActions } from './room/round.js'
 import { createPromiseActions } from '../promise/actions.js'
-import { createStudioMessageHandler } from '../rooms/studio/facade.js'
+import { createStudioMessageHandler } from '../rooms/studio/runtime/facade.js'
 import { ROOM_STATE } from '../../../shared/states.js'
 
 // 一轮工作被暂停/停止拦住；房间自身的动作和运行中动作不受这条门禁影响。

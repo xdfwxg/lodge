@@ -8,7 +8,6 @@ const setup = () => {
   const room = {
     id: 'room-1',
     roomType: 'chat',
-    seatSpecs: [{ id: 'worker', name: '甲' }],
   }
   const strategy = createChatRuntime({
     store: {

@@ -29,6 +29,11 @@ const start = async ({ roomRequest = null } = {}) => {
     workspaceMemory: async () => ({ ok: true, body: { entries: [], canReview: true } }),
     workspaceMemoryReview: async () => ({ ok: true, body: { entries: [], canReview: true } }),
     forgetMemory: async () => ({ ok: true, body: { room: { id: 'room-1' } } }),
+    webhookReceive: async (roomId, token, body) => (
+      token === 'a'.repeat(48) && body?.text === 'ok'
+        ? { ok: true, body: { accepted: true, id: 'e1' } }
+        : { ok: false, reason: 'forbidden', error: 'webhook 令牌不对' }
+    ),
     roomRequest: roomRequest ?? (async (roomId, action) => {
       actions.push(action)
       return { ok: true, body: { room: { id: roomId, action } } }
@@ -125,6 +130,22 @@ test('every successful HTTP route is counted only when it returns 2xx or 3xx', a
     }
     assert.deepEqual(ctx.actions.sort(), [...ROOM_ACTIONS].sort())
     assert.equal(covered.length, 17 + ROOM_ACTIONS.length)
+  } finally {
+    await ctx.close()
+  }
+})
+
+test('a webhook arrives with its room token and is refused without one', async () => {
+  const ctx = await start()
+  try {
+    const good = await post(ctx.base, `/api/webhooks/room-1/${'a'.repeat(48)}`, { text: 'ok', id: 'e1' })
+    assert.equal(good.status, 200)
+    assert.deepEqual(await good.json(), { accepted: true, id: 'e1' })
+    const bad = await post(ctx.base, `/api/webhooks/room-1/${'b'.repeat(48)}`, { text: 'ok' })
+    assert.equal(bad.status, 403)
+    // 形状不对的路径不落进 webhook 入口。
+    const wrong = await post(ctx.base, '/api/webhooks/room-1/short', { text: 'ok' })
+    assert.equal(wrong.status, 404)
   } finally {
     await ctx.close()
   }

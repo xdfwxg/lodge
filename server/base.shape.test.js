@@ -1,5 +1,5 @@
-// 录制回放：形状来自真实 8799，值由测试合成。
-// 真实基座少字段时这里会红；多字段时由 check-base-drift 提示，不阻塞本地测试。
+// 录制回放：形状来自本机 Rust 基座（`npm run base:record`），值由测试合成。
+// 基座少字段时这里会红；多出来的字段不进断言，回放只认引擎真正读的那些。
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
@@ -21,10 +21,12 @@ test('the recorded shape still carries every field the engine reads', () => {
 
   const groups = pathOf(fixture.endpoints.bootstrap, 'bots') && fixture.endpoints.bootstrap.keys.groups
   assert.equal(groups.type, 'array')
-  for (const key of ['id', 'threadId', 'name', 'memberIds', 'defaultResponder', 'tasks', 'usage', 'queue']) {
+  for (const key of ['id', 'threadId', 'name', 'memberIds', 'defaultResponder', 'cwd']) {
     assert.ok(key in groups.items.keys, `groups[].${key}`)
   }
-  assert.equal(groups.items.keys.tasks.items.keys.title, 'string')
+  // Rust 基座不给群上的 tasks / queue / heldMessages：房间目标按 bulletin → name 回落，
+  // 排队与带出的消息由 Lodge 自己记。回放只锁引擎真正读、基座真正给的那些键。
+  assert.equal(groups.items.keys.bulletin, 'string')
   assert.equal(fixture.endpoints.config.keys.features.type, 'keys')
   assert.ok(fixture.endpoints.config.keys.features.keys.includes('skillsLibrary'))
 })
@@ -49,7 +51,7 @@ test('the engine normalizes a payload with the recorded real shape', async () =>
     'groups.0.id': 'group-1',
     'groups.0.threadId': 'thread-group',
     'groups.0.name': '圆桌',
-    'groups.0.bulletin': '',
+    'groups.0.bulletin': '把发布检查做出来',
     'groups.0.cwd': '/tmp/work',
     'groups.0.description': '',
     'groups.0.busyBotId': null,

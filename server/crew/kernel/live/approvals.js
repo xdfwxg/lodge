@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { tmpdir } from 'node:os'
 import { externalAction, pendingApprovals } from '../../external-actions.js'
 import { reviewExternalAction } from './action-gate.js'
 import { memberNameOf } from './projection.js'
@@ -10,6 +11,7 @@ import { attemptScopeOf, scopeIsValid } from '../../../../shared/attempt.js'
 import { canSkipApproval } from '../../room-access.js'
 import { appendHumanContext } from '../../human-context.js'
 import { APPROVAL_STATE, PAUSE_REASON, ROOM_STATE } from '../../../../shared/states.js'
+import { roomPolicyOf } from '../../../../shared/room-policy.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
 // 暂停后给人和卡片留一段真正的回答时间；不能和暂停同一刻自动拒绝。
@@ -255,17 +257,37 @@ export const createLiveApprovals = ({
     const readOnly = readOnlyFor(room)
     const directVerifier = room?.workspace?.provider === 'direct' &&
       (member?.role === 'verifier' || member?.roleKind === 'verifier')
-    const allowed = decidePermission(member, card.action, {
+    // 只读研究是系统能力：读页面、网页搜索和抓取不需要执行权，也不逐次问人。
+    // 其他外部动作仍按成员权限判断，再逐次确认。
+    // 只读研究仍是系统能力，但成员至少要有读权限；空权限不能借它拿网络。
+    const research = member?.permissions?.read === true && canSkipApproval({ member, tool: card.tool })
+    const allowed = research || decidePermission(member, card.action, {
       readOnly,
       direct: room?.workspace?.provider === 'direct',
       tool: card.tool ?? '',
     })
-    const external = allowed ? externalAction(card) : null
+    // 成员自己能写的地方：工作副本、系统临时目录。副本内的删除不占人类一次确认。
+    const memberCwd = room?.worktrees?.[memberId] ?? room?.repoPath ?? ''
+    const writable = [memberCwd, tmpdir(), ...(process.platform === 'win32' ? [] : ['/tmp'])].filter(Boolean)
+    const external = allowed ? externalAction(card, { cwd: memberCwd, writable }) : null
+    const policy = roomPolicyOf(room)
     const cardSession = sessionRef ?? entry.members.get(memberId)?.sessionRef
-    // 系统只放行只读研究；其他外部动作照旧逐次确认。
-    const browserAllowed = allowed && canSkipApproval({ member, tool: card.tool })
-    if (external !== null && !browserAllowed) {
+    // 外部动作要停的时候先说清它是什么（推送/安装/删除），不要伪装成普通改动。
+    // 房间选了“外部动作先问”，或者选了“每一步都问”，都按外部动作的标签停。
+    if (allowed && !research && external !== null && (policy.external === 'ask' || policy.files === 'confirm')) {
       await holdForApproval(entry, memberId, card, external, cardSession)
+      return
+    }
+    // 房间选了“每一步都问”：普通写文件和跑命令也停下来等人。
+    if (allowed && !research && policy.files === 'confirm' && (card.action === 'write' || card.action === 'exec')) {
+      const detail = typeof card.subtitle === 'string' ? card.subtitle : ''
+      await holdForApproval(entry, memberId, card, {
+        kind: 'change',
+        label: '改动这间房',
+        target: detail,
+        summary: detail === '' ? (card.tool ?? '改动') : detail,
+        command: '',
+      }, cardSession)
       return
     }
     rememberAnswer(entry, card.requestId)
@@ -293,7 +315,8 @@ export const createLiveApprovals = ({
       entry.answeredCards.delete(card.requestId)
       const reason = String(error?.message ?? error)
       // 基座已经不在等这张卡（例如重启后重放历史）：本地收起来，别让人对着一张死卡。
-      if (/nothing is waiting/i.test(reason)) {
+      // 基座两种说法都算“这张卡已经不在等了”（重放旧卡时最常遇到）。
+      if (/nothing is waiting|没有这张卡/i.test(reason)) {
         markRoomAnswer(store, entry.roomId, card.requestId)
         refresh(entry, { force: true })
         return
@@ -341,7 +364,8 @@ export const createLiveApprovals = ({
     } catch (error) {
       const reason = String(error?.message ?? error)
       // 基座那边已经不在等这张卡（例如房间重启过）：本地视为回答过，别让人对着死卡点。
-      if (/nothing is waiting/i.test(reason)) {
+      // 基座两种说法都算“这张卡已经不在等了”（重放旧卡时最常遇到）。
+      if (/nothing is waiting|没有这张卡/i.test(reason)) {
         rememberAnswer(entry, requestId)
         store.appendMessage(roomId, {
           kind: 'system',

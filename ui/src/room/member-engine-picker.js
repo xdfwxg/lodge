@@ -97,9 +97,11 @@ export function MemberEnginePicker({
           engine !== undefined && rows.length === 0
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个 模型服务还没有可用模型。')
             : null,
-          engine !== undefined && engine.authenticated !== false && needsGate === true && engine.capabilities?.approvalReview !== true
-            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
-            : null),
+          engine !== undefined && engine.authenticated !== false && needsGate === true && engine.capabilities?.tools === false
+            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型这一版还不能改文件、跑命令。换一个能动手的模型。')
+            : engine !== undefined && engine.authenticated !== false && needsGate === true && engine.capabilities?.approvalReview !== true
+              ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
+              : null),
         allowCapabilities
           ? h('details', { className: 'crew-member-capabilities' },
             h('summary', null, allowSkills ? '技能 / 工具连接' : '工具连接'),

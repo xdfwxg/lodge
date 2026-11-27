@@ -3,12 +3,16 @@ import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { createBodyFactory } from '../../body.js'
 import { roomBulletin, roomModeForType } from '../kinds.js'
 import { roleKindOf } from '../../roster.js'
+import { approvalOf } from '../../../../shared/room-policy.js'
 import { independenceOf } from '../../independence.js'
+import { DESKTOP_MCP_SERVER_NAME } from '../../../../shared/desktop-mcp.js'
+import { desktopGrant } from '../../../desktop-mcp.js'
 
 // 验收员先要眼睛：有声明能看图的实例就先选它，其中再优先不同厂商；
 // 没有能看图的，才退回跨厂商独立复核。两者只能保一个时，先保有眼睛。
 export const pickVerifierEngine = (instances, workerKinds) => {
-  const available = (instances ?? []).filter(item => item?.available === true)
+  // 只有真能干活、会先问人的引擎才进候选；装了但没登录/没模型的不算。
+  const available = (instances ?? []).filter(item => item?.available === true && engineReady(item, { requireApproval: true }))
   const vision = available.filter(item => item?.capabilities?.images === true)
   const chosen = vision.find(item => !workerKinds.has(item.engine)) ??
     vision[0] ??
@@ -23,7 +27,7 @@ export const createProvisioner = ({ engine }) => {
   const createdRooms = []
   let cleanupExtra = null
 
-  const provision = async ({ roster, short, title, goal, handoffBrief = null, workspaces, roomType = 'studio', align = false }) => {
+  const provision = async ({ roster, short, title, goal, handoffBrief = null, workspaces, roomType = 'studio', align = false, policy = null, desktop = false }) => {
     const mode = roomModeForType(roomType)
     const instances = await bodies.instances()
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
@@ -35,8 +39,11 @@ export const createProvisioner = ({ engine }) => {
     const kindOf = member => member.roleKind ?? roleKindOf(member.role)
     // 工人先建，验收员才有事实可依；没有显式引擎时优先选不同厂商。
     const ordered = [...roster].sort((a, b) => (kindOf(a) === 'verifier' ? 1 : 0) - (kindOf(b) === 'verifier' ? 1 : 0))
+    // 默认编制里写的是历史厂商名；真正用谁由这台机器决定：选第一台能干活、会先问人的引擎。
+    const defaultEngine = instances.find(item => engineReady(item, { requireApproval: true }))
+    const defaultOf = id => instances.find(item => item.id === id)
     for (const member of ordered) {
-      let requestedEngine = member.engine
+      let requestedEngine = member.engineExplicit === true ? member.engine : (defaultEngine?.id ?? member.engine)
       if (kindOf(member) === 'verifier' && member.engineExplicit !== true) {
         const workerKinds = new Set(created
           .filter(({ member: item }) => kindOf(item) === 'executor')
@@ -44,16 +51,25 @@ export const createProvisioner = ({ engine }) => {
         const candidateId = pickVerifierEngine(instances, workerKinds)
         if (candidateId !== null) requestedEngine = candidateId
       }
+      // 用户没指定模型时跟着引擎的默认模型走；写死的厂商模型名不能带到别的引擎上。
+      const requestedModel = member.engineExplicit === true
+        ? member.model
+        : (defaultOf(requestedEngine)?.models?.default ?? '')
+      const mcp = [...(Array.isArray(member.mcp) ? member.mcp : [])]
+      if (desktop === true && kindOf(member) === 'executor' && !mcp.some(grant => grant?.server === DESKTOP_MCP_SERVER_NAME)) {
+        mcp.push(desktopGrant())
+      }
       const incarnation = await bodies.incarnate({
         member,
         config: {
           engine: requestedEngine,
-          model: member.model,
+          model: requestedModel,
           soul: mode.memberSoul?.(member) ?? member.prompt,
+          ...(policy === null ? {} : { policy }),
           spec: {
             prompt: mode.memberPrompt?.(member) ?? '',
             skills: member.skills ?? [],
-            mcp: member.mcp ?? [],
+            mcp,
           },
         },
         thread: {
@@ -120,6 +136,11 @@ export const createProvisioner = ({ engine }) => {
       instances,
     })
     const approvalGates = Object.fromEntries(created.map(({ member, body }) => [member.id, approvalGateOf(body.engine)]))
+    // 引擎这一版有没有工具面；没有工具的驱动不需要审批卡，也做不了要动手的活。
+    const toolGates = Object.fromEntries(created.map(({ member, body }) => [
+      member.id,
+      instances.find(item => item.id === body.engine)?.capabilities?.tools !== false,
+    ]))
     const byId = new Map(created.map(item => [item.member.id, item]))
     const members = roster.map(member => {
       const { body } = byId.get(member.id)
@@ -135,7 +156,7 @@ export const createProvisioner = ({ engine }) => {
         permissions: member.permissions,
         writeScope: member.writeScope,
         toolSurface: member.toolSurface,
-        approval: member.approval,
+        approval: policy === null ? member.approval : approvalOf(policy),
         ...(member.voice === undefined || member.voice === '' ? {} : { voice: member.voice }),
         ...(member.personality === undefined || member.personality === '' ? {} : { personality: member.personality }),
         ...(member.stance === undefined || member.stance === '' ? {} : { stance: member.stance }),
@@ -145,6 +166,7 @@ export const createProvisioner = ({ engine }) => {
     return {
       members,
       approvalGates,
+      toolGates,
       engineFallbacks,
       independence,
       chatRoom,

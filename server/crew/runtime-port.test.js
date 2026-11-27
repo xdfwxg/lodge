@@ -8,6 +8,8 @@ import {
   RUNTIME_EVENT,
   RUNTIME_METHODS,
   RUNTIME_NAMESPACES,
+  LIVE_METHODS,
+  assertLivePort,
   assertRuntimePort,
   supportsRuntime,
 } from './runtime-port.js'
@@ -27,6 +29,15 @@ const completeRuntime = () => {
   )
   return runtime
 }
+
+test('the room runtime contract is checked at startup, not at the first room', () => {
+  // 房型引擎会调这些方法；缺一个就在启动时失败，不等真实房间跑到一半才报一条“服务错误”。
+  const live = Object.fromEntries(LIVE_METHODS.map(name => [name, () => {}]))
+  assert.equal(assertLivePort(live), undefined)
+  delete live.startChat
+  assert.throws(() => assertLivePort(live), /房间运行时缺少方法：startChat/)
+  assert.throws(() => assertLivePort(null), /必须是一个对象/)
+})
 
 test('the runtime port validates methods, namespaces and capabilities', () => {
   const runtime = completeRuntime()
@@ -218,7 +229,7 @@ test('an unavailable engine falls back explicitly with a reason', async () => {
     instances: async () => ({
       instances: [{
         instanceId: 'i1',
-        driverKind: 'claudeAgent',
+        driverKind: 'claude',
         snapshot: { state: 'available' },
         models: { default: 'm1', options: [{ id: 'm1' }] },
         capabilities: { streaming: true },

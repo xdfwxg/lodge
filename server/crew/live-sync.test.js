@@ -2,23 +2,23 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createMessageProjector } from './kernel/live/projection.js'
 import { createMemberSync } from './kernel/live/sync.js'
-import { normalizeTestRoom, withAssignments } from './testing/room.js'
+import { withAssignments } from './testing/room.js'
 
 test('an engine-level member error pauses the room and marks its assignment failed', async () => {
-  let room = normalizeTestRoom({
+  let room = {
     id: 'room-1',
     state: 'active',
     roomType: 'studio',
-    seatBots: { worker: 'bot-w' },
-    seatNames: { worker: '执行者' },
-    seatSpecs: [{ id: 'worker', role: 'worker', name: '执行者' }],
+    members: [
+      { "id": "worker", "role": "worker", "name": "执行者", "roleKind": "executor", body: {"kind":"base","ref":"bot-w","name":"执行者"} },
+    ],
     hiddenBaseMessages: [],
     stages: [{
       title: 'impl',
       kind: 'deliverable',
       state: 'active',
     }],
-  })
+  }
   const messages = []
   const store = withAssignments({
     readRoom: () => room,
@@ -72,16 +72,16 @@ test('an engine-level member error pauses the room and marks its assignment fail
 })
 
 test('ordinary activity is not treated as an engine failure', async () => {
-  let room = normalizeTestRoom({
+  let room = {
     id: 'room-1',
     state: 'active',
     roomType: 'studio',
-    seatBots: { worker: 'bot-w' },
-    seatNames: { worker: '执行者' },
-    seatSpecs: [{ id: 'worker', role: 'worker', name: '执行者' }],
+    members: [
+      { "id": "worker", "role": "worker", "name": "执行者", "roleKind": "executor", body: {"kind":"base","ref":"bot-w","name":"执行者"} },
+    ],
     hiddenBaseMessages: [],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }],
-  })
+  }
   const store = withAssignments({
     readRoom: () => room,
     updateRoom: (_id, mutate) => {
@@ -114,16 +114,16 @@ test('ordinary activity is not treated as an engine failure', async () => {
 })
 
 test('a private thread reply is not projected twice into the room', async () => {
-  const room = normalizeTestRoom({
+  const room = {
     id: 'room-1',
     state: 'active',
     roomType: 'studio',
-    seatBots: { worker: 'bot-w' },
-    seatNames: { worker: '执行者' },
-    seatSpecs: [{ id: 'worker', role: 'worker', name: '执行者' }],
+    members: [
+      { "id": "worker", "role": "worker", "name": "执行者", "roleKind": "executor", body: {"kind":"base","ref":"bot-w","name":"执行者"} },
+    ],
     hiddenBaseMessages: [],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }],
-  })
+  }
   const messages = []
   const captured = []
   const store = withAssignments({

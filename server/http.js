@@ -6,7 +6,7 @@ import {
   ATTACHMENT_IMAGE_MAX_BYTES,
   isNativeImage,
 } from '../shared/attachments.js'
-import { matchRoomAction } from './route-table.js'
+import { API_ROUTES, matchRoute, routeKey } from './api-contract.js'
 import * as log from './crew/log.js'
 import { pageAssignments } from './crew/assignment-history.js'
 import { presentRoom } from './crew/presentation.js'
@@ -152,6 +152,183 @@ const serveStatic = (root, req, res, pathname) => {
   res.end(readFileSync(file))
 }
 
+// 每个接口只写“怎么答”，路径和方法的清单在 api-contract.js。
+// 少写一个处理函数、或者写了表里没有的接口，模块加载时就抛错——不让协议和实现各走各的。
+const HANDLERS = {
+  'POST /api/webhooks/:roomId/:token': async ({ req, res, params, service }) => (
+    respond(res, await service.webhookReceive(params.roomId, params.token, await readJson(req)))
+  ),
+
+  'GET /api/state': async ({ res, service }) => json(res, 200, await service.state()),
+
+  'GET /api/health': async ({ res, service }) => respond(res, await service.health()),
+
+  // 监听自检只问“这个端口后面是不是 Lodge 自己”，不碰基座：基座慢不等于监听没了，
+  // 端口被别的进程占住也要看得出来。
+  'GET /api/ping': async ({ res }) => json(res, 200, { server: 'lodge' }),
+
+  'POST /api/system/choose-directory': async ({ res, chooseDirectory }) => {
+    if (process.platform !== 'darwin') {
+      return json(res, 501, { error: '当前系统还不支持从 web 选择目录；请粘贴目录路径' })
+    }
+    return json(res, 200, await chooseDirectory())
+  },
+
+  'POST /api/system/open-path': async ({ req, res, openPath }) => {
+    const body = await readJson(req)
+    if (typeof body.path !== 'string' || body.path.trim() === '') {
+      return json(res, 400, { error: '缺少路径' })
+    }
+    await openPath(body.path)
+    return json(res, 200, { ok: true })
+  },
+
+  'GET /api/events': async ({ req, res, url, service, clients, send }) => {
+    const since = Number(req.headers['last-event-id'] ?? url.searchParams.get('since') ?? 0) || 0
+    // 先把要补的消息取出来再开头：取不到就还能如实回一个 500，而不是开一条立刻断的流。
+    const messages = service.messagesSince(since)
+    res.writeHead(200, {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+      'x-accel-buffering': 'no',
+    })
+    res.write('retry: 2000\n\n')
+    for (const message of messages) send(res, 'msg', message, message.seq)
+    clients.add(res)
+    req.on('close', () => clients.delete(res))
+  },
+
+  'POST /api/profile': async ({ req, res, service }) => respond(res, service.saveProfile(await readJson(req))),
+
+  'GET /api/settings/email': async ({ res, service }) => respond(res, service.emailSettings()),
+
+  'POST /api/settings/email': async ({ req, res, service }) => {
+    log.info('[lodge] 收到邮箱设置请求')
+    const body = await readJson(req)
+    if (body?.action === 'test') return respond(res, await service.testEmail(body))
+    if (body?.action === 'clear') {
+      log.info('[lodge] 邮箱设置已断开')
+      return respond(res, service.clearEmailSettings())
+    }
+    const saved = service.saveEmailSettings(body)
+    // 只记结果，不记地址和密码；保存没到达或没通过时，日志是唯一的现场。
+    if (saved?.ok === true) log.info('[lodge] 邮箱设置已保存')
+    else log.warn(`[lodge] 邮箱设置没保存：${saved?.error ?? '未知原因'}`)
+    return respond(res, saved)
+  },
+
+  'POST /api/rooms': async ({ req, res, service }) => respond(res, await service.createRoom(await readJson(req))),
+
+  'POST /api/rooms/sample': async ({ req, res, service }) => {
+    const body = await readJson(req)
+    return respond(res, await service.createSampleRoom(body?.kind === 'chat' ? 'chat' : 'studio'))
+  },
+
+  'GET /api/rooms/:roomId/assignments': async ({ res, url, params, store }) => {
+    const stage = url.searchParams.get('stage')
+    const page = pageAssignments(store, params.roomId, {
+      stage: stage === null || stage === '' ? null : Number(stage),
+      status: url.searchParams.get('status'),
+      before: url.searchParams.get('before'),
+      limit: Number(url.searchParams.get('limit') ?? 50),
+    })
+    return json(res, 200, page)
+  },
+
+  'GET /api/workspace/memory': async ({ res, url, service }) => respond(res, await service.workspaceMemory({
+    sourceRepo: url.searchParams.get('path') ?? '',
+    limit: Number(url.searchParams.get('limit') ?? 20),
+  })),
+
+  'POST /api/workspace/memory/review': async ({ req, res, service }) => {
+    const body = await readJson(req)
+    return respond(res, await service.workspaceMemoryReview({
+      sourceRepo: body.path,
+      memoryId: body.memoryId,
+      decision: body.decision,
+    }))
+  },
+
+  'POST /api/attachments': async ({ req, res, url, service }) => {
+    const mime = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
+    const limit = isNativeImage(mime) ? ATTACHMENT_IMAGE_MAX_BYTES : ATTACHMENT_FILE_MAX_BYTES
+    const bytes = await readRaw(req, limit)
+    return respond(res, await service.uploadAttachment({
+      bytes,
+      mime,
+      name: url.searchParams.get('name') ?? '',
+    }))
+  },
+
+  'GET /api/attachments/:name': async ({ res, params, service }) => {
+    const result = await service.attachmentBytes({ name: params.name })
+    if (result.ok !== true) return json(res, STATUS[result.reason] ?? 500, { error: result.error })
+    const { bytes, mime } = result.body
+    res.writeHead(200, {
+      'content-type': mime,
+      'content-length': bytes.length,
+      'cache-control': 'private, no-store',
+      'x-content-type-options': 'nosniff',
+    })
+    return res.end(bytes)
+  },
+
+  'GET /api/rooms/:roomId/artifact': async ({ res, url, params, service }) => respond(res, await service.artifact({
+    roomId: params.roomId,
+    path: url.searchParams.get('path') ?? '',
+  })),
+
+  'GET /api/rooms/:roomId/memory': async ({ res, url, params, service }) => respond(res, await service.memory({
+    roomId: params.roomId,
+    limit: Number(url.searchParams.get('limit') ?? 20),
+  })),
+
+  'POST /api/rooms/:roomId/memory/opt-out': async ({ res, params, service }) => (
+    respond(res, await service.forgetMemory({ roomId: params.roomId }))
+  ),
+
+  'POST /api/rooms/:roomId/memory/:memoryId/review': async ({ req, res, params, service }) => {
+    const body = await readJson(req)
+    return respond(res, await service.memoryReview({
+      roomId: params.roomId,
+      memoryId: params.memoryId,
+      decision: body.decision,
+    }))
+  },
+
+  'GET /api/rooms/:roomId/evidence/:messageId': async ({ res, params, service }) => (
+    respond(res, await service.evidence(params.roomId, params.messageId))
+  ),
+
+  'GET /api/rooms/:roomId/rounds/:roundId': async ({ res, params, service }) => (
+    respond(res, await service.roundDetail(params.roomId, params.roundId))
+  ),
+
+  'POST /api/rooms/:roomId/:action': async ({ req, res, params, service, store }) => {
+    const result = await service.roomRequest(params.roomId, params.action, {
+      method: req.method,
+      readBody: () => readJson(req),
+    })
+    return respond(res, withPresentedRoom(store, result))
+  },
+}
+
+export const HTTP_HANDLER_KEYS = Object.freeze(Object.keys(HANDLERS))
+
+// 协议与实现的对账在加载时做一次：漏写处理函数或写下表里没有的接口，启动就失败。
+const assertProtocolMatchesHandlers = () => {
+  const declared = API_ROUTES.map(routeKey)
+  const missing = declared.filter(key => typeof HANDLERS[key] !== 'function')
+  const extra = Object.keys(HANDLERS).filter(key => !declared.includes(key))
+  if (missing.length === 0 && extra.length === 0) return
+  throw new Error([
+    missing.length === 0 ? '' : `协议里有、实现没有：${missing.join('、')}`,
+    extra.length === 0 ? '' : `实现里有、协议没有：${extra.join('、')}`,
+  ].filter(Boolean).join('；'))
+}
+assertProtocolMatchesHandlers()
+
 export const createHttpHandler = ({
   root,
   service,
@@ -169,177 +346,14 @@ export const createHttpHandler = ({
     const blocked = requestGuard(req, path, { actionToken })
     if (blocked !== null) return json(res, 403, { error: blocked })
 
-    if (path === '/api/state' && req.method === 'GET') {
-      return json(res, 200, await service.state())
-    }
-
-    if (path === '/api/health' && req.method === 'GET') {
-      return respond(res, await service.health())
-    }
-
-    if (path === '/api/system/choose-directory' && req.method === 'POST') {
-      if (process.platform !== 'darwin') {
-        return json(res, 501, { error: '当前系统还不支持从 web 选择目录；请粘贴目录路径' })
-      }
-      return json(res, 200, await chooseDirectory())
-    }
-
-    if (path === '/api/system/open-path' && req.method === 'POST') {
-      const body = await readJson(req)
-      if (typeof body.path !== 'string' || body.path.trim() === '') {
-        return json(res, 400, { error: '缺少路径' })
-      }
-      await openPath(body.path)
-      return json(res, 200, { ok: true })
-    }
-
-    if (path === '/api/events' && req.method === 'GET') {
-      const since = Number(req.headers['last-event-id'] ?? url.searchParams.get('since') ?? 0) || 0
-      res.writeHead(200, {
-        'content-type': 'text/event-stream; charset=utf-8',
-        'cache-control': 'no-cache, no-transform',
-        connection: 'keep-alive',
-        'x-accel-buffering': 'no',
+    for (const route of API_ROUTES) {
+      if (route.method !== req.method) continue
+      const params = matchRoute(route, path)
+      if (params === null) continue
+      // auth 目前只是协议上的声明：桌面令牌由 requestGuard 统一拦，房间动作由房间自己判。
+      return await HANDLERS[routeKey(route)]({
+        req, res, url, params, service, store, clients, send, chooseDirectory, openPath,
       })
-      res.write('retry: 2000\n\n')
-      for (const message of service.messagesSince(since)) send(res, 'msg', message, message.seq)
-      clients.add(res)
-      req.on('close', () => clients.delete(res))
-      return
-    }
-
-    if (path === '/api/profile' && req.method === 'POST') {
-      return respond(res, service.saveProfile(await readJson(req)))
-    }
-
-    if (path === '/api/settings/email' && req.method === 'GET') {
-      return respond(res, service.emailSettings())
-    }
-
-    if (path === '/api/settings/email' && req.method === 'POST') {
-      log.info('[lodge] 收到邮箱设置请求')
-      const body = await readJson(req)
-      if (body?.action === 'test') return respond(res, await service.testEmail(body))
-      if (body?.action === 'clear') {
-        log.info('[lodge] 邮箱设置已断开')
-        return respond(res, service.clearEmailSettings())
-      }
-      const saved = service.saveEmailSettings(body)
-      // 只记结果，不记地址和密码；保存没到达或没通过时，日志是唯一的现场。
-      if (saved?.ok === true) log.info('[lodge] 邮箱设置已保存')
-      else log.warn(`[lodge] 邮箱设置没保存：${saved?.error ?? '未知原因'}`)
-      return respond(res, saved)
-    }
-
-    if (path === '/api/rooms' && req.method === 'POST') {
-      return respond(res, await service.createRoom(await readJson(req)))
-    }
-
-    if (path === '/api/rooms/sample' && req.method === 'POST') {
-      const body = await readJson(req)
-      return respond(res, await service.createSampleRoom(body?.kind === 'chat' ? 'chat' : 'studio'))
-    }
-
-    const assignmentsPath = path.match(/^\/api\/rooms\/([\w-]+)\/assignments$/)
-    if (assignmentsPath !== null && req.method === 'GET') {
-      const [, roomId] = assignmentsPath
-      const stage = url.searchParams.get('stage')
-      const page = pageAssignments(store, roomId, {
-        stage: stage === null || stage === '' ? null : Number(stage),
-        status: url.searchParams.get('status'),
-        before: url.searchParams.get('before'),
-        limit: Number(url.searchParams.get('limit') ?? 50),
-      })
-      return json(res, 200, page)
-    }
-
-    if (path === '/api/workspace/memory' && req.method === 'GET') {
-      return respond(res, await service.workspaceMemory({
-        sourceRepo: url.searchParams.get('path') ?? '',
-        limit: Number(url.searchParams.get('limit') ?? 20),
-      }))
-    }
-
-    if (path === '/api/workspace/memory/review' && req.method === 'POST') {
-      const body = await readJson(req)
-      return respond(res, await service.workspaceMemoryReview({
-        sourceRepo: body.path,
-        memoryId: body.memoryId,
-        decision: body.decision,
-      }))
-    }
-
-    if (path === '/api/attachments' && req.method === 'POST') {
-      const mime = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
-      const limit = isNativeImage(mime) ? ATTACHMENT_IMAGE_MAX_BYTES : ATTACHMENT_FILE_MAX_BYTES
-      const bytes = await readRaw(req, limit)
-      return respond(res, await service.uploadAttachment({
-        bytes,
-        mime,
-        name: url.searchParams.get('name') ?? '',
-      }))
-    }
-
-    const attachmentPath = path.match(/^\/api\/attachments\/([A-Za-z0-9._-]+)$/)
-    if (attachmentPath !== null && req.method === 'GET') {
-      const result = await service.attachmentBytes({ name: attachmentPath[1] })
-      if (result.ok !== true) return json(res, STATUS[result.reason] ?? 500, { error: result.error })
-      const { bytes, mime } = result.body
-      res.writeHead(200, {
-        'content-type': mime,
-        'content-length': bytes.length,
-        'cache-control': 'private, no-store',
-        'x-content-type-options': 'nosniff',
-      })
-      return res.end(bytes)
-    }
-
-    const artifactPath = path.match(/^\/api\/rooms\/([\w-]+)\/artifact$/)
-    if (artifactPath !== null && req.method === 'GET') {
-      const [, roomId] = artifactPath
-      return respond(res, await service.artifact({
-        roomId,
-        path: url.searchParams.get('path') ?? '',
-      }))
-    }
-
-    const memoryPath = path.match(/^\/api\/rooms\/([\w-]+)\/memory$/)
-    if (memoryPath !== null && req.method === 'GET') {
-      const [, roomId] = memoryPath
-      return respond(res, await service.memory({ roomId, limit: Number(url.searchParams.get('limit') ?? 20) }))
-    }
-
-    const memoryOptOutPath = path.match(/^\/api\/rooms\/([\w-]+)\/memory\/opt-out$/)
-    if (memoryOptOutPath !== null && req.method === 'POST') {
-      return respond(res, await service.forgetMemory({ roomId: memoryOptOutPath[1] }))
-    }
-
-    const memoryReviewPath = path.match(/^\/api\/rooms\/([\w-]+)\/memory\/([\w-]+)\/review$/)
-    if (memoryReviewPath !== null && req.method === 'POST') {
-      const [, roomId, memoryId] = memoryReviewPath
-      const body = await readJson(req)
-      return respond(res, await service.memoryReview({ roomId, memoryId, decision: body.decision }))
-    }
-
-    const evidencePath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence\/([\w-]+)$/)
-    if (evidencePath !== null && req.method === 'GET') {
-      const [, roomId, messageId] = evidencePath
-      return respond(res, await service.evidence(roomId, messageId))
-    }
-
-    const roundDetailPath = path.match(/^\/api\/rooms\/([\w-]+)\/rounds\/([\w-]+)$/)
-    if (roundDetailPath !== null && req.method === 'GET') {
-      const [, roomId, roundId] = roundDetailPath
-      return respond(res, await service.roundDetail(roomId, roundId))
-    }
-
-    const roomAction = matchRoomAction(path)
-    if (roomAction !== null) {
-      const result = await service.roomRequest(roomAction.roomId, roomAction.action, {
-        method: req.method,
-        readBody: () => readJson(req),
-      })
-      return respond(res, withPresentedRoom(store, result))
     }
 
     if (path.startsWith('/api/')) return json(res, 404, { error: '没有这个接口' })

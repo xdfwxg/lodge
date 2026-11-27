@@ -32,6 +32,12 @@ const fakeClient = ({ enabled = true, conflict = false } = {}) => {
       state.skills.set(name, { name, enabled: false })
       state.texts.set(name, text)
     },
+    async deleteLibrarySkill(name) {
+      if (!state.skills.has(name)) throw new Error('base 404')
+      state.skills.delete(name)
+      state.texts.delete(name)
+      state.deletes = (state.deletes ?? 0) + 1
+    },
     async approveLibrarySkill(name) {
       state.approvals += 1
       state.skills.set(name, { ...state.skills.get(name), name, enabled: true })
@@ -87,12 +93,16 @@ test('opens the base library when it is off', async () => {
   assert.equal(client.state.patchConfig, 1)
 })
 
-test('a different user skill is kept, not overwritten, and does not block rooms', async () => {
+test('a stale role pack is deleted and replaced with the version on disk', async () => {
+  // 角色包归 Lodge：改过就删旧导新，不保留基座里的旧正文（否则升级永远不生效）。
   const client = fakeClient({ conflict: true })
   client.state.skills.set(TOOLBOX_SKILLS[0], { name: TOOLBOX_SKILLS[0], enabled: true })
   const result = await ensureRoleSkillPacks({ client, root, log: quiet })
-  assert.deepEqual(result.conflicts, [TOOLBOX_SKILLS[0]])
-  assert.equal(client.state.texts.has(TOOLBOX_SKILLS[0]), false)
+  assert.deepEqual(result.replaced, [TOOLBOX_SKILLS[0]])
+  assert.equal(client.state.deletes, 1)
+  assert.equal(client.state.texts.has(TOOLBOX_SKILLS[0]), true)
+  assert.match(client.state.texts.get(TOOLBOX_SKILLS[0]), /^---\nname: /)
+  assert.equal(client.state.skills.get(TOOLBOX_SKILLS[0]).enabled, true)
 })
 
 test('a failed skill install can be retried on the next room', async () => {

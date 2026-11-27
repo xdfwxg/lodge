@@ -27,6 +27,7 @@ export const buildRoomRecord = ({
   builtStages,
   align,
   gate = null,
+  policy = null,
 }) => {
   const mode = roomModeForType(roomType.id)
   const shape = mode.record({
@@ -68,6 +69,7 @@ export const buildRoomRecord = ({
   noProgress: 0,
   openQuestion: null,
   version: 1,
+  ...(policy === null ? {} : { policy }),
   constraints: shape.constraints,
   roomType: roomType.id,
   ...(autoDeliver ? { autoDeliver: true } : {}),

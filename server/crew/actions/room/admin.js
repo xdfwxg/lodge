@@ -4,15 +4,112 @@ import { OPEN_ROUND_STATUSES, ROOM_STATE } from '../../../../shared/states.js'
 import { roomDeletableNow } from '../../../../shared/room-status.js'
 import { PROMISE_STATUS } from '../../../../shared/promise.js'
 import { disarmPromise } from '../../promise/queue.js'
+import {
+  approvalOf,
+  networkModeOf,
+  normalizeRoomPolicy,
+  policySummaryOf,
+  roomPolicyOf,
+} from '../../../../shared/room-policy.js'
+import { bodyChangeBlocker } from '../../body-change.js'
+import { TURN_BUDGET } from '../../../../shared/turn-budget.js'
+import { executionProfileFor, nativeToolsFor, supportsToolScoping, toolScopeFor } from '../../tool-scope.js'
+import { roomToolsFor } from '../../gate/tool.js'
+import { newWebhookToken, webhookPathOf } from '../../webhook.js'
 
 // 房间本体的动作：改名、归档、删除、成员与身体。
 export const createAdminActions = deps => {
   const {
-    live, emit, roomFiles, files, memberAdd, memberRemove, stopRound,
-    readRoom, updateRoom, deleteRoom,
+    live, emit, roomFiles, files, memberAdd, memberRemove, stopRound, engine,
+    readRoom, updateRoom, deleteRoom, store,
   } = deps
 
+  const patchPolicy = async (room, policy, members = room.members ?? []) => {
+    const failures = []
+    const patched = []
+    for (const member of members) {
+      const ref = member.body?.ref
+      if (typeof ref !== 'string' || ref === '') continue
+      const selection = {
+        instanceId: member.body?.engine ?? '',
+        ...(typeof member.body?.model === 'string' && member.body.model !== '' ? { model: member.body.model } : {}),
+      }
+      let ok = true
+      try {
+        await engine.patchMemberBot(ref, {
+          // 只改权限相关的字段：soul 是建房时按角色生成的，不能拿 spec 里的原文覆盖。
+          description: member.station,
+          approval: supportsToolScoping(member.body?.engine) ? approvalOf(policy) : 'ask',
+          mcp: Array.isArray(member.body?.spec?.mcp) ? member.body.spec.mcp : [],
+          roomTools: roomToolsFor(member),
+          toolScope: toolScopeFor(member),
+          nativeTools: nativeToolsFor(member),
+          budget: TURN_BUDGET,
+          profile: executionProfileFor(member, member.body?.engine),
+          limits: { fileBytes: TURN_BUDGET.fileBytes, processes: TURN_BUDGET.processes },
+          network: networkModeOf(policy),
+          modelSelection: selection,
+        })
+      } catch (error) {
+        ok = false
+        failures.push(`${member.name}：${error?.message ?? error}`)
+      }
+      if (ok) patched.push(member)
+    }
+    return { failures, patched }
+  }
+
   return {
+    // 房间的三项权限：文件怎么改、网络用多少、外部动作问不问。
+    // 改完立刻落到每个成员身上；有成员没落上就退回原策略，不留下半套。
+    permissions: async ({ room: input, readBody }) => {
+      const room = readRoom(input.id) ?? input
+      const body = await readBody()
+      const previous = roomPolicyOf(room)
+      const { policy, error } = normalizeRoomPolicy(body.policy ?? body, previous)
+      if (error !== undefined) return fail('invalid', error)
+      if (typeof engine?.patchMemberBot !== 'function') return fail('conflict', '当前版本还不能调整权限')
+      const blocked = bodyChangeBlocker(room, '调整权限')
+      if (blocked !== null) return fail('conflict', blocked)
+      if (policy.network === 'model') {
+        let modes = []
+        try {
+          modes = (await engine.health?.())?.networkModes ?? []
+        } catch {
+          modes = []
+        }
+        // 基座给不出这一档就不让选，不把“只连模型”做成一句空话。
+        if (!modes.includes('model')) return fail('conflict', '这个基座还不支持“只连模型”；先升级基座。')
+        const unscoped = (room.members ?? []).filter(member => !supportsToolScoping(member.body?.engine))
+        if (unscoped.length > 0) {
+          return fail('conflict', `这间房里有成员的模型不支持“只连模型”：${unscoped.map(member => member.name).join('、')}。`)
+        }
+      }
+      const { failures, patched } = await patchPolicy(room, policy)
+      if (failures.length > 0) {
+        // 已经落上的成员退回原策略；不影响本来就没改的。
+        if (patched.length > 0) await patchPolicy(room, previous, patched)
+        return fail('conflict', `有成员没更新：${failures.join('；')}`)
+      }
+      const updated = updateRoom(room.id, current => {
+        current.policy = policy
+        for (const member of current.members ?? []) {
+          member.approval = supportsToolScoping(member.body?.engine) ? approvalOf(policy) : 'ask'
+        }
+        return { events: [{ type: 'room.policy', payload: policy }] }
+      })
+      if (updated === null) {
+        if (patched.length > 0) await patchPolicy(room, previous, patched)
+        return fail('not_found', '没有这个房间')
+      }
+      store.appendMessage(room.id, {
+        kind: 'system',
+        text: `这间房的权限调好了：${policySummaryOf(policy)}。`,
+      })
+      emit('room', store.readRoom(room.id) ?? updated)
+      return ok({ room: store.readRoom(room.id) ?? updated })
+    },
+
     rename: async ({ room, readBody }) => {
       const body = await readBody()
       const name = typeof body.name === 'string' ? body.name.trim() : ''
@@ -21,9 +118,38 @@ export const createAdminActions = deps => {
         current.name = name
         return { events: [{ type: 'room.renamed', payload: { name } }] }
       })
-      if (updated === null) return fail('not_found', '没有这个房间')
+      if (updated === null) {
+        if (patched.length > 0) await patchPolicy(room, previous, patched)
+        return fail('not_found', '没有这个房间')
+      }
       emit('room', updated)
       return ok({ room: updated })
+    },
+
+    // 房间的 webhook 入口：开启幂等、轮换换新令牌、关闭直接删；路径只在开启时给。
+    webhook: async ({ room: input, readBody }) => {
+      const body = await readBody()
+      const action = typeof body?.action === 'string' ? body.action : 'enable'
+      if (!['enable', 'rotate', 'disable'].includes(action)) return fail('invalid', 'webhook 只有 enable / rotate / disable')
+      if (action === 'disable') {
+        if (input.webhook === undefined) return ok({ enabled: false, path: null })
+        const cleared = updateRoom(input.id, current => {
+          delete current.webhook
+          return { events: [{ type: 'room.webhook', payload: { enabled: false } }] }
+        })
+        if (cleared === null) return fail('not_found', '没有这个房间')
+        emit('room', cleared)
+        return ok({ enabled: false, path: null })
+      }
+      const rotated = action === 'rotate' || typeof input.webhook?.token !== 'string' || input.webhook.token === ''
+      const updated = updateRoom(input.id, current => {
+        if (!rotated && current.webhook?.token) return null
+        current.webhook = { token: newWebhookToken(), createdAt: Date.now() }
+        return { events: [{ type: 'room.webhook', payload: { enabled: true, rotated } }] }
+      })
+      const room = updated ?? (readRoom(input.id) ?? input)
+      if (updated !== null) emit('room', updated)
+      return ok({ enabled: true, path: webhookPathOf(room) })
     },
 
     archive: async ({ room: input, readBody }) => {
@@ -87,7 +213,10 @@ export const createAdminActions = deps => {
         }
         return { events: [{ type: 'room.archived', payload: { stopped: openRound || hadRound } }] }
       })
-      if (updated === null) return fail('not_found', '没有这个房间')
+      if (updated === null) {
+        if (patched.length > 0) await patchPolicy(room, previous, patched)
+        return fail('not_found', '没有这个房间')
+      }
       disarmPromise({ store: deps.store ?? {}, roomId: room.id, promise: promiseBefore })
       emit('room', updated)
       return ok({ room: updated })

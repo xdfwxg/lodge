@@ -88,3 +88,17 @@ test('the alignment prompt asks the planner to submit a plan and crew', () => {
   assert.match(prompt, /平台会校验、开通成员并开始第一步/)
   assert.doesNotMatch(prompt, /下一步做什么、交给谁/)
 })
+
+test('the engine line keeps engine and model apart when the model id has a slash', () => {
+  // 真房教训：模型 id 带斜杠（deepseek/deepseek-flash）时，写成 engine/model 的串会被拆错，
+  // 规划师把厂商名填进 engine，方案被退回两次后房间停住。
+  const prompt = alignmentPrompt('写 hello.txt', null, [
+    { id: 'pi', available: true, models: { default: 'deepseek/deepseek-flash' } },
+  ])
+  assert.match(prompt, /可用引擎（engine）与默认模型（model）：pi → deepseek\/deepseek-flash/)
+  assert.match(prompt, /engine 只填箭头左边那一项/)
+  assert.match(prompt, /带斜杠也照抄，不要拆开/)
+  assert.doesNotMatch(prompt, /pi\/deepseek\/deepseek-flash/)
+  // 没有可用引擎时不写这一行，不留一句空话。
+  assert.doesNotMatch(alignmentPrompt('写 hello.txt', null, []), /可用引擎/)
+})

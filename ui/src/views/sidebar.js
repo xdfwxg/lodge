@@ -12,7 +12,7 @@ const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
 
-function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRounds = null, onHoldMember = null, engines = [], onSwapBody = null, lodgeRoom = null, profile = null, onProfile = null }) {
+function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRounds = null, onHoldMember = null, engines = [], onSwapBody = null, onPolicy = null, onWebhook = null, lodgeRoom = null, profile = null, onProfile = null }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
   const [sideCollapsed, setSideCollapsed] = useState(false)
@@ -128,6 +128,8 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRoun
     onHold: onHoldMember,
     engines,
     onSwapBody,
+    onPolicy: onPolicy === undefined || onPolicy === null ? null : policy => onPolicy(room.id, policy),
+    onWebhook: onWebhook === undefined || onWebhook === null ? null : (id, action) => onWebhook(id, action),
   })
   const renderRoom = room => h(Fragment, { key: room.id },
     roomRow(room),

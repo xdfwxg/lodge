@@ -1,4 +1,7 @@
-import { engineBlockReason, engineReady } from '../../shared/engine-readiness.js'
+import { availableEngines, engineBlockReason, engineReady, modelBlockReason, resolveEngine } from '../../shared/engine-readiness.js'
+import { DESKTOP_MCP_SERVER_NAME } from '../../shared/desktop-mcp.js'
+import { desktopGrant } from '../desktop-mcp.js'
+import { supportsToolScoping } from './tool-scope.js'
 import { fail, ok } from './result.js'
 import { systemNotice } from './notices.js'
 import { createBodyFactory } from './body.js'
@@ -11,6 +14,7 @@ import { roomBulletin, roomModeOfRoom } from './rooms/kinds.js'
 import { membersFor } from './roster.js'
 import { grantBrowserToAll, stripBrowser } from './room-access.js'
 import { isBrowserGrant } from '../../shared/room-access.js'
+import { approvalOf, roomPolicyOf } from '../../shared/room-policy.js'
 
 const ROLE_ALIASES = { worker: 'worker', executor: 'worker', verifier: 'verifier' }
 const ROLE_LABEL = { worker: '执行官', verifier: '验收员' }
@@ -24,7 +28,7 @@ const uniqueId = (room, role) => {
 }
 
 // 添加 Bot 不是新增全局实体：往 room.members 追加一条带 body 的成员。
-export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, browserMcp = null }) => {
+export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, browserMcp = null, desktopMcp = null }) => {
   const bodies = createBodyFactory({ engine })
   const add = async (room, body = {}) => {
     if (roomModeOfRoom(room)?.supportsMemberAdd !== true) return fail('invalid', '这间房不能添加成员')
@@ -37,6 +41,10 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
     if (role === undefined) return fail('invalid', '只能添加执行官或验收员')
     const name = typeof body.name === 'string' ? body.name.trim().slice(0, 32) : ''
     if (name === '') return fail('invalid', '先给成员起个名字')
+    if (room.workspace?.capabilities?.desktop === true && role === 'worker'
+      && (room.members ?? []).some(member => member.role === 'worker' || member.roleKind === 'executor')) {
+      return fail('conflict', '这台电脑一次只能有一位执行官；先移除已有的执行官，再加新的')
+    }
     if ((room.members ?? []).some(member => String(member.name ?? '').toLowerCase() === name.toLowerCase())) {
       return fail('invalid', '房间里已经有同名成员')
     }
@@ -47,18 +55,25 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
 
     const instances = await bodies.instances()
     const requested = typeof body.engine === 'string' ? body.engine.trim() : ''
-    const instance = requested !== ''
-      ? instances.find(item => item.id === requested)
+    const requestedModel = typeof body.model === 'string' ? body.model.trim() : ''
+    const instance = requested !== '' || requestedModel !== ''
+      ? resolveEngine(instances, requested, requestedModel)
       : instances.find(item => engineReady(item, { requireApproval: true }))
+    // 没有工具面的引擎（claude / codex v1）根本做不了工作室的活：这一条先于审批讲。
     const issue = engineBlockReason(instance, { requireApproval: true })
     if (issue !== '') {
       if (issue === '登录失效') return fail('invalid', '这个模型服务还没登录。')
+      if (issue === '还不能改文件、跑命令') return fail('invalid', '这个模型这一版还不能改文件、跑命令；工作室请用 pi。')
       if (issue === '不会先问你外部动作') return fail('invalid', '执行官要用会先问你的模型。')
-      return fail('invalid', issue === '没有这个模型服务' ? '这个模型服务现在不可用' : `这个模型服务现在不可用：${issue}`)
+      if (issue === '没有这个模型服务') {
+        const available = availableEngines(instances)
+        return fail('invalid', `这个模型服务现在不可用；可用：${available === '' ? '没有' : available}`)
+      }
+      return fail('invalid', `这个模型服务现在不可用：${issue}`)
     }
-    const model = typeof body.model === 'string' && body.model.trim() !== ''
-      ? body.model.trim()
-      : (instance.models?.default ?? '')
+    const modelIssue = modelBlockReason(instance, requestedModel)
+    if (modelIssue !== '') return fail('invalid', modelIssue)
+    const model = requestedModel !== '' ? requestedModel : (instance.models?.default ?? '')
 
     const template = membersFor('delivery-triad').find(member => member.role === role)
     const id = uniqueId(room, role)
@@ -84,13 +99,20 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
     }
     const granted = (browserReady ? grantBrowserToAll([spec]) : stripBrowser([spec]))[0]
     spec.mcp = granted.mcp
-    bodySpec.mcp = granted.mcp
+    if (room.workspace?.capabilities?.desktop === true && role === 'worker' && !spec.mcp.some(grant => grant?.server === DESKTOP_MCP_SERVER_NAME)) {
+      // 这间房的工作区是这台电脑：执行官拿到电脑这双手，别的成员不拿。
+      const ready = await desktopMcp?.ensure?.()
+      if (ready !== true) return fail('invalid', '电脑操作的提供方没有准备好；先检查 LODGE_DESKTOP_MCP_URL')
+      spec.mcp = [...spec.mcp, desktopGrant()]
+    }
+    bodySpec.mcp = spec.mcp
     if (role === 'verifier' && spec.mcp.some(grant => !isBrowserGrant(grant))) {
       return fail('invalid', '验收员只能使用只读浏览器，不能挂其他外部工具。')
     }
     Object.assign(spec, mode.memberRole?.(spec) ?? {})
     const soul = mode.memberSoul?.(spec) ?? bodySpec.prompt
 
+    const policy = room.policy === undefined ? null : roomPolicyOf(room)
     let memberWorkspace = null
     let incarnation = null
     let sharedUpdated = false
@@ -98,7 +120,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
       memberWorkspace = provider.addMember({ room, member: spec })
       incarnation = await bodies.incarnate({
         member: spec,
-        config: { engine: instance.id, model, soul, spec: bodySpec },
+        config: { engine: instance.id, model, soul, spec: bodySpec, ...(policy === null ? {} : { policy }) },
         thread: {
           name: `${room.name} · ${name}`,
           goal: room.goal,
@@ -122,7 +144,9 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
           permissions: template.permissions,
           writeScope: template.writeScope,
           toolSurface: template.toolSurface,
-          approval: template.approval,
+          approval: policy === null
+            ? template.approval
+            : (supportsToolScoping(instance.id) ? approvalOf(policy) : 'ask'),
           body: incarnation.body,
         }]
         current.worktrees = { ...(current.worktrees ?? {}), [id]: memberWorkspace.path }

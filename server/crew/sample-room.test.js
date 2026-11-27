@@ -6,12 +6,14 @@ import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { presentRoom } from './presentation.js'
 import { SAMPLE_CHAT_ROOM_ID, SAMPLE_ROOM_ID } from './rooms/sample.js'
+import { studioFindings } from './rooms/studio/runtime/state-guard.js'
 import { createCrewService } from './service.js'
 import { createStore } from './store.js'
 
 const setup = () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-sample-'))
-  const store = createStore({ dataDir })
+  // 用组合根同一份守卫：示例房要能在默认的严格模式下建出来，不能只在影子模式里过。
+  const store = createStore({ dataDir, roundGuard: studioFindings })
   const service = createCrewService({
     store,
     engine: { health: async () => ({}), instances: async () => [] },

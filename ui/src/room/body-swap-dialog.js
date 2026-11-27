@@ -6,6 +6,17 @@ import { useOverlay } from '../overlay.js'
 const engineLabelOf = engine => engine.name ?? engine.id
 
 // 成员只换执行者：成员 id、证据、交接、历史、性格和工具面都不动；模型用执行者的默认配置。
+const BLOCKED_HINTS = {
+  '还不能改文件、跑命令': '这个选项这一版还不能改文件、跑命令。换一个能动手的。',
+  '不会先问你外部动作': '这个选项不会先问你，不能执行。换一个会先问你的。',
+  '没有配置模型': '这个选项还没有可用模型。',
+}
+
+const blockedHint = reason => {
+  const text = BLOCKED_HINTS[reason]
+  return text === undefined ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, text)
+}
+
 export function BodySwapDialog({
   member,
   engines = [],
@@ -78,11 +89,7 @@ export function BodySwapDialog({
       available.length === 0
         ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个模型服务。')
         : engine !== undefined && blocked && blockedReason !== '登录失效'
-          ? blockedReason === '不会先问你外部动作'
-            ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个选项不会先问你，不能执行。换一个会先问你的。')
-            : blockedReason === '没有配置模型'
-              ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个选项还没有可用模型。')
-              : null
+          ? blockedHint(blockedReason)
           : null,
       h(EngineLogin, {
         readiness,

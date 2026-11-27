@@ -1,8 +1,10 @@
 import * as log from './log.js'
 import { bodyIssueOf } from './body-check.js'
 import { ensureGateServer, roomToolsFor } from './gate/tool.js'
-import { toolScopeFor } from './tool-scope.js'
+import { executionProfileFor, nativeToolsFor, supportsToolScoping, toolScopeFor } from './tool-scope.js'
 import { mergeRoleSkills } from '../../shared/role-toolbox.js'
+import { TURN_BUDGET } from '../../shared/turn-budget.js'
+import { approvalOf, networkModeOf } from '../../shared/room-policy.js'
 
 // 身体工厂：只负责让一具基座身体上线、进入共享房间、退役。
 // 成员身份、权限、交接、房间状态都不在这里；建房、换身体、添加成员共用这一条路。
@@ -19,6 +21,7 @@ export const createBodyFactory = ({ engine }) => {
 
   const incarnate = async ({ member, config, thread }) => {
     const spec = config.spec ?? {}
+    const policy = config.policy ?? null
     const skills = mergeRoleSkills(
       member.roleKind === 'participant' ? 'participant' : member.role,
       Array.isArray(spec.skills) ? spec.skills : [],
@@ -44,10 +47,19 @@ export const createBodyFactory = ({ engine }) => {
       name: member.name,
       soul: config.soul,
       description: member.station,
-      approval: member.approval,
+      approval: policy === null
+        ? member.approval
+        : (supportsToolScoping(config.engine) ? approvalOf(policy) : 'ask'),
+      cwd: typeof thread.cwd === 'string' ? thread.cwd : '',
       mcp,
+      autoMcpServers: mcp.filter(grant => grant?.approval === 'auto' && typeof grant?.server === 'string').map(grant => grant.server),
       roomTools,
       toolScope: toolScopeFor(member),
+      nativeTools: nativeToolsFor(member),
+      budget: TURN_BUDGET,
+      profile: executionProfileFor(member, config.engine),
+      limits: { fileBytes: TURN_BUDGET.fileBytes, processes: TURN_BUDGET.processes },
+      network: policy === null ? 'proxy' : networkModeOf(policy),
       engine: config.engine,
       model: config.model,
     })
@@ -90,7 +102,8 @@ export const createBodyFactory = ({ engine }) => {
     }
   }
 
-  // 主持人只占一个基座席位，不占成员位置；创建和退役都留在身体适配层。
+  // 主持人只占一个基座席位，不占成员位置；房间权限只作用于成员，主持人没有工具。
+  // 创建和退役都留在身体适配层。
   const createHost = async ({ name, soul, description, approval, mcp = [] }) => engine.createMemberBot({
     name,
     soul,
@@ -99,6 +112,9 @@ export const createBodyFactory = ({ engine }) => {
     mcp,
     roomTools: [],
     toolScope: toolScopeFor({ roleKind: 'participant' }),
+    profile: 'strict',
+    limits: { fileBytes: TURN_BUDGET.fileBytes, processes: TURN_BUDGET.processes },
+    network: 'proxy',
   })
 
   const retireHost = async (ref, { strict = false } = {}) => {

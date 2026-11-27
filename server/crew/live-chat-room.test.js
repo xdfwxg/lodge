@@ -3,7 +3,7 @@ import test from 'node:test'
 import { chatTurnLimitFor, turnLimitOf as chatTurnLimitOf } from './room-types/chat.js'
 import { createChatScheduler, pickChatSpeaker } from './rooms/chat/scheduler.js'
 import { createChatTransport } from './rooms/chat/transport.js'
-import { normalizeTestRoom } from './testing/room.js'
+
 
 test('a chat round defaults to people plus two and keeps a lower stored cap', () => {
   assert.equal(chatTurnLimitFor(6), 8)
@@ -18,7 +18,7 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false, 
   const total = count ?? (extraMember ? 3 : 2)
   const members = ['a', 'b', 'c', 'd', 'e', 'f'].slice(0, total)
   const seatNames = Object.fromEntries(members.map(id => [id, id.toUpperCase()]))
-  let current = normalizeTestRoom({
+  let current = {
     id: 'room-chat',
     kind: 'room',
     name: '聊天室',
@@ -34,17 +34,15 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false, 
       speaker: '',
       note: '',
     },
-    members,
-    seatBots: seatNames,
-    seatNames,
-    seatSpecs: members.map((id, index) => ({
+    members: members.map((id, index) => ({
       id,
       name: '甲乙丙丁戊己'[index],
       personality: PERSONAS[index],
+      body: { kind: 'base', ref: seatNames[id], name: seatNames[id] },
     })),
     chatHost: { memberRef: 'H', name: 'LodgeHost', displayName: 'Lodge 主持' },
     chatRoom: { id: 'chat', sessionRef: 'thread' },
-  })
+  }
   const messages = []
   const history = []
   const events = []
@@ -84,14 +82,14 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false, 
         })
       }
       if (!summary && !silent) {
-        const authorId = Object.entries(current.seatBots).find(([, value]) => value === ref)?.[0]
+        const authorId = (current.members ?? []).find(member => member.body?.ref === ref)?.id
         store.appendMessage(current.id, { kind: 'chat', authorId, text: replyText })
       }
       return { accepted: true, messageId: id }
     },
   }
   const sendToMember = async (member, text) => {
-    const name = member === 'host' ? current.chatHost.name : current.seatNames[member]
+    const name = member === 'host' ? current.chatHost.name : (current.members ?? []).find(item => item.id === member)?.body?.name
     return engine.sendTurn({ roomId: current.chatRoom.id, text: `@${name} ${text}` })
   }
   return { store, engine, sendToMember, room: () => current, messages, history, events }

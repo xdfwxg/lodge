@@ -160,3 +160,60 @@ test('only disjoint file-bearing packages can run in parallel', () => {
     { packages: [{ files: ['c'] }] },
   ]), 2)
 })
+
+test('a clause that names a file proves it only after the stage that writes it', () => {
+  // 真房（第 31 轮）：规划师把「lodge-proof.json 可重跑」这条要求放在第 2 步，
+  // 但第 2 步的工作包只写 hello.txt 和 tools/check.mjs——执行商照包写，验收员按契约判不通过，白跑一轮。
+  const twoStages = plan => ({
+    contract: {
+      outcomes: [
+        { id: 'hello', statement: 'hello.txt 存在', observable: 'cat hello.txt 有内容' },
+        { id: 'proof', statement: 'lodge-proof.json 的 entry 能跑', observable: '跑 entry 退出 0' },
+      ],
+      boundaries: ['只改这些文件'],
+      nonGoals: ['不装依赖'],
+      assumptions: ['仓库可写'],
+    },
+    plan: { stages: plan },
+    crew: { executors: [{ engine: 'pi', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
+  })
+  const misplaced = normalizeCrewProposal(twoStages([
+    {
+      title: '落文件',
+      deliverable: 'hello.txt 与证明',
+      clauseIds: ['hello', 'proof'],
+      packages: [{ title: 'a', files: ['hello.txt'], clauseIds: ['hello', 'proof'] }],
+    },
+    {
+      title: '证明',
+      deliverable: 'lodge-proof.json',
+      clauseIds: ['proof'],
+      packages: [{ title: 'b', files: ['lodge-proof.json'], clauseIds: ['proof'] }],
+    },
+  ]))
+  assert.match(misplaced.error, /第 1 步的契约要求「proof」提到 lodge-proof\.json/)
+  assert.match(misplaced.error, /要到第 2 步才写/)
+
+  // 同一条要求放在写它的那一步就没事；提到别的目录里的文件也不算错。
+  const placed = normalizeCrewProposal(twoStages([
+    { title: '落文件', deliverable: 'hello.txt', clauseIds: ['hello'], packages: [{ title: 'a', files: ['hello.txt'], clauseIds: ['hello'] }] },
+    { title: '证明', deliverable: 'lodge-proof.json', clauseIds: ['proof'], packages: [{ title: 'b', files: ['lodge-proof.json'], clauseIds: ['proof'] }] },
+  ]))
+  assert.equal(placed.error, undefined)
+})
+
+test('a package may cover a directory, not just an exact path', () => {
+  const result = normalizeCrewProposal({
+    contract: {
+      outcomes: [{ id: 'checker', statement: 'tools/check.mjs 能跑', observable: 'node tools/check.mjs 退出 0' }],
+      boundaries: ['只改 tools'],
+      nonGoals: ['不装依赖'],
+      assumptions: ['仓库可写'],
+    },
+    plan: {
+      stages: [{ title: '实现', deliverable: '检查器', clauseIds: ['checker'], packages: [{ title: 'a', files: ['tools'], clauseIds: ['checker'] }] }],
+    },
+    crew: { executors: [{ engine: 'pi', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
+  })
+  assert.equal(result.error, undefined)
+})

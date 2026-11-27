@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildMemberHandoff } from './rooms/studio/member-handoff.js'
+import { buildMemberHandoff } from './rooms/studio/delivery/member-handoff.js'
 import { setCurrentHumanName } from './human-name.js'
 
 const room = {

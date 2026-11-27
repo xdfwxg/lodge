@@ -1,9 +1,9 @@
 import http from 'node:http'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
+import { fstatSync, mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { createCrewPorts } from './crew/crew-ports.js'
-import { createLiveRooms } from './crew/rooms/base/live.js'
+import { createLiveRooms } from './crew/rooms/live/live.js'
 import { createRoomScheduler } from './crew/rooms/scheduler.js'
 import { ensureLodgeRoom } from './crew/rooms/lodge.js'
 import { acquireDataLock } from './crew/lock.js'
@@ -15,34 +15,39 @@ import { openPath } from './system-open.js'
 import { createHttpHandler } from './http.js'
 import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
 import { ROLES, validateRoster } from './crew/roster.js'
-import { assertRuntimePort } from './crew/runtime-port.js'
+import { assertLivePort, assertRuntimePort } from './crew/runtime-port.js'
 import { compactAssignments } from './crew/assignment-history.js'
 import { createStore } from './crew/store.js'
 import { createBaseClient } from './base.js'
 import { createSkillPackGate, ensureRoleSkillPacks } from './skill-packs.js'
 import { ensureBrowserMcp } from './browser-mcp.js'
+import { studioFindings } from './crew/rooms/studio/runtime/state-guard.js'
+import { ensureDesktopMcp } from './desktop-mcp.js'
 import { clearLodgeBaseResources } from './base-gc.js'
 import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
 import { recoverMessages } from './crew/recovery.js'
 import { pruneBackups, snapshotDatabase, snapshotMemory } from './crew/data-recovery.js'
-import { createStudioAutoAcceptor } from './crew/rooms/studio/auto-accept.js'
+import { createStudioAutoAcceptor } from './crew/rooms/studio/plan/auto-accept.js'
+import { createListenerWatch, rebindOnce } from './listener-watch.js'
+import { captureListenerReport } from './listener-report.js'
+import { createStuckAudit } from './crew/rooms/studio/plan/stuck-audit.js'
 
 // 唯一的装配点：配置、存储、引擎、房间和 HTTP 都从这里注入。
 // 进程入口只负责 listen、信号和退出，不再自己读状态或创建 Agent。
-export const createLodgeApp = async ({ root, env = process.env } = {}) => {
+export const createLodgeApp = async ({ root, env = process.env, onListenerLost = null } = {}) => {
   validateRoster(ROLES)
   const dataDir = env.CREW_DATA_DIR === undefined ? join(root, '.data') : resolve(env.CREW_DATA_DIR)
   const releaseLock = acquireDataLock(dataDir)
   try {
-    return await buildApp({ root, env, dataDir, releaseLock })
+    return await buildApp({ root, env, dataDir, releaseLock, onListenerLost })
   } catch (error) {
     releaseLock()
     throw error
   }
 }
 
-const buildApp = async ({ root, dataDir, env, releaseLock }) => {
+const buildApp = async ({ root, dataDir, env, releaseLock, onListenerLost = null }) => {
   // 桌面版由 Electron 主进程代理写操作；令牌只活在进程内，不写环境、不上日志。
   const actionToken = env.LODGE_DESKTOP === '1' ? randomUUID() : null
   const clients = new Set()
@@ -74,7 +79,7 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
     console.warn(`memory snapshot failed: ${error?.message ?? error}`)
   }
 
-  const store = createStore({ dataDir, emit: broadcast })
+  const store = createStore({ dataDir, emit: broadcast, roundGuard: studioFindings })
   compactAssignments(store)
 
   // 补齐“transcript 已 fsync、SQLite 还没写”的崩溃窗口；库仍是唯一真相。
@@ -164,8 +169,11 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
   const ports = createCrewPorts({
     memoryRoot: join(dataDir, 'memory'),
     browserMcp: { ensure: () => ensureBrowserMcp(engine) },
+    desktopMcp: { ensure: () => ensureDesktopMcp(engine) },
     attachments: baseForAttachments,
     roleSkills: { ready: ensureSkillPacks },
+    // 证明/反例由基座在边界里跑；Lodge 自己不再 spawn agent 命令。
+    runSandboxed: payload => baseForAttachments.runSandboxed(payload),
   })
   progressWriter = room => {
     try {
@@ -176,6 +184,8 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
   }
 
   const live = createLiveRooms({ store, engine, emit, ports })
+  // 房型引擎直接调这些方法；缺了就在启动时说清楚，不等真实房间跑到一半报一条“服务错误”。
+  assertLivePort(live)
   service = createCrewService({
     store,
     engine,
@@ -224,6 +234,10 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
   void runWorkspaceGc()
   gcTimer = setInterval(runWorkspaceGc, 6 * 60 * 60 * 1000)
   gcTimer.unref?.()
+  // 卡住的房间不写库，写点上的不变量看不到它：定期扫一遍，只记影子告警。
+  const stuckAudit = createStuckAudit({ store })
+  const stuckTimer = setInterval(() => { stuckAudit.audit() }, 60_000)
+  stuckTimer.unref?.()
 
   const server = http.createServer(createHttpHandler({
     root,
@@ -236,6 +250,56 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
     actionToken,
   }))
   const port = Number(env.CREW_PORT ?? 8787)
+  // 监听消失时进程往往还活着：房间照跑、界面全白。自检发现连续连不上时，先拍现场、再重建；
+  // 重建也起不来就交回入口退出——不留下一个不响应的进程。
+  let rebinding = false
+  const rebind = () => rebindOnce(server, { port })
+  const listenerWatch = createListenerWatch({
+    port,
+    onLost: () => {
+      if (rebinding) return
+      rebinding = true
+      void (async () => {
+        // 先拍现场再重建：重建会把监听状态抹掉，事后就查不出是谁关的。
+        await captureListenerReport({ dataDir, port, server }).catch(() => {})
+        const ok = await rebind().catch(() => false)
+        rebinding = false
+        if (ok) {
+          console.error('[lodge] 监听已重建')
+          listenerWatch.reset()
+          return
+        }
+        onListenerLost?.()
+      })()
+    },
+  })
+  server.once('listening', () => listenerWatch.start())
+
+  // fd 级看门狗：现场里出现过「server.listening 还是 true、句柄 fd 已经关了或被复用」。
+  // 自连探活要两个 30 秒周期才发现；这里每 2 秒问一次内核，连续两次不对就立刻走同一条上报路径。
+  let fdSuspect = 0
+  let fdChecking = false
+  const fdWatch = setInterval(() => {
+    const fd = server._handle?.fd
+    if (!Number.isInteger(fd) || fd < 0) return
+    let broken = false
+    try {
+      broken = !fstatSync(fd).isSocket()
+    } catch (error) {
+      broken = error?.code === 'EBADF'
+    }
+    if (!broken) {
+      fdSuspect = 0
+      return
+    }
+    fdSuspect += 1
+    if (fdSuspect < 2 || fdChecking) return
+    fdSuspect = 0
+    fdChecking = true
+    // 交给同一条上报路径：先拍现场（现在会带 fd 的内核状态），再重建。
+    void Promise.resolve(listenerWatch.tick()).finally(() => { fdChecking = false })
+  }, 2_000)
+  fdWatch.unref?.()
 
   const ensureLodge = async attempt => {
     if (stopped) return
@@ -263,6 +327,9 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
   const stop = async () => {
     if (stopped) return
     stopped = true
+    listenerWatch.stop()
+    clearInterval(fdWatch)
+    clearInterval(stuckTimer)
     autoAccept?.stop()
     if (snapshotTimer !== null) clearInterval(snapshotTimer)
     if (gcTimer !== null) clearInterval(gcTimer)
@@ -279,5 +346,5 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
     releaseLock()
   }
 
-  return { server, store, service, dataDir, port, actionToken, start, stop }
+  return { server, store, service, dataDir, port, actionToken, start, stop, listenerWatch }
 }

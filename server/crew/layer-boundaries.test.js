@@ -9,15 +9,15 @@ const root = fileURLToPath(new URL('.', import.meta.url))
 const applicationFiles = [
   'rooms/create/create.js',
   'rooms/create/input.js',
-  'rooms/studio/start.js',
+  'rooms/studio/plan/start.js',
   'rooms/create/record.js',
   'rooms/create/workspace.js',
   'rooms/create/provision.js',
-  'rooms/studio/complete.js',
+  'rooms/studio/plan/complete.js',
   'service.js',
   'service-queries.js',
-  'rooms/studio/service-stages.js',
-  'rooms/base/live.js',
+  'rooms/studio/plan/service-stages.js',
+  'rooms/live/live.js',
   'rooms/kinds.js',
   'rooms/chat/runtime.js',
   'rooms/chat/kind.js',
@@ -25,28 +25,28 @@ const applicationFiles = [
   'rooms/chat/projection.js',
   'rooms/chat/scheduler.js',
   'rooms/chat/service.js',
-  'rooms/studio/runtime.js',
-  'rooms/studio/kind.js',
-  'rooms/studio/prompts.js',
+  'rooms/studio/runtime/runtime.js',
+  'rooms/studio/runtime/kind.js',
+  'rooms/studio/runtime/prompts.js',
   'kernel/live/bus.js',
   'kernel/live/projection.js',
   'kernel/live/refresh.js',
   'kernel/live/approvals.js',
   'kernel/live/sync.js',
-  'rooms/studio/turns.js',
+  'rooms/studio/runtime/turns.js',
   'rooms/studio/runtime/result.js',
-  'rooms/studio/integration.js',
-  'rooms/studio/review.js',
-  'rooms/studio/stage.js',
-  'rooms/studio/turn-state.js',
-  'rooms/studio/workspace.js',
-  'rooms/studio/delivery.js',
-  'rooms/studio/gates.js',
-  'rooms/studio/verifiers.js',
-  'rooms/studio/stage-plan.js',
-  'rooms/studio/progress.js',
-  'rooms/studio/member-handoff.js',
-  'rooms/studio/human-handoff.js',
+  'rooms/studio/delivery/integration.js',
+  'rooms/studio/acceptance/review.js',
+  'rooms/studio/plan/stage.js',
+  'rooms/studio/plan/turn-state.js',
+  'rooms/studio/runtime/workspace.js',
+  'rooms/studio/delivery/delivery.js',
+  'rooms/studio/acceptance/gates.js',
+  'rooms/studio/acceptance/verifiers.js',
+  'rooms/studio/plan/stage-plan.js',
+  'rooms/studio/plan/progress.js',
+  'rooms/studio/delivery/member-handoff.js',
+  'rooms/studio/delivery/human-handoff.js',
   'workspace-gc.js',
   'presentation.js',
 ]
@@ -119,12 +119,12 @@ test('the chat host stays inside the chat room', () => {
 
 test('business files never resolve base names or addresses', () => {
   const businessFiles = [
-    'rooms/studio/handoff.js',
-    'rooms/studio/prompts.js',
-    'rooms/studio/start.js',
-    'rooms/studio/review.js',
-    'rooms/studio/stage.js',
-    'rooms/studio/turns.js',
+    'rooms/studio/delivery/handoff.js',
+    'rooms/studio/runtime/prompts.js',
+    'rooms/studio/plan/start.js',
+    'rooms/studio/acceptance/review.js',
+    'rooms/studio/plan/stage.js',
+    'rooms/studio/runtime/turns.js',
     'rooms/chat/scheduler.js',
   ]
   for (const file of businessFiles) {
@@ -149,7 +149,7 @@ test('chat host provisioning stays behind ports', () => {
 })
 
 test('prompt builders do not send messages', () => {
-  const text = readFileSync(join(root, 'rooms/studio/prompts.js'), 'utf8')
+  const text = readFileSync(join(root, 'rooms/studio/runtime/prompts.js'), 'utf8')
   assert.doesNotMatch(text, /sendTurn|engine\./, 'prompts.js both builds prompts and delivers them')
 })
 

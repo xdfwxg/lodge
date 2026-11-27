@@ -47,3 +47,4 @@ strategy/
 
 # Rust base slice build output
 base-rs/target/
+build/base-rs/

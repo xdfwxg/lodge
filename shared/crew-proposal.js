@@ -5,6 +5,26 @@ import { clauseIdOf, normalizeContract } from './contract.js'
 const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 const list = (value, max, each) => (Array.isArray(value) ? value.map(each).filter(item => item !== null).slice(0, max) : [])
 
+// 目标、契约要求里点名的文件（带扩展名，或带目录）。带“不要/不改/禁止”的从句不算要求。
+const NEGATED = /(不要|不改|禁止|别改|不得)/u
+const PATH_TOKEN = /(?:\.\/)?[A-Za-z0-9_.-]+\/[A-Za-z0-9_./-]*[A-Za-z0-9_-]|\b[A-Za-z0-9_-]+\.(?:txt|md|json|js|mjs|cjs|ts|tsx|jsx|css|html|yml|yaml|toml|sh|py|rs|go|java|rb)\b/gu
+const cleanPath = value => String(value).trim().replace(/^\.\//, '').replace(/[.,。；;]+$/u, '')
+export const pathsOf = value => {
+  const found = []
+  for (const clause of String(value ?? '').split(/[；;。\n]/u)) {
+    if (clause.trim() === '' || NEGATED.test(clause)) continue
+    for (const match of clause.matchAll(PATH_TOKEN)) {
+      const path = cleanPath(match[0])
+      if (path !== '') found.push(path)
+    }
+  }
+  return [...new Set(found)]
+}
+// 这一步写不写这个文件：包里的文件可以是文件，也可以是目录（按前缀放行）。
+export const writesPath = (files, path) => [...files].some(file => (
+  path === file || path.startsWith(`${file.replace(/\/+$/, '')}/`)
+))
+
 const stageOf = (raw, index) => {
   const title = text(raw?.title, 80)
   const deliverable = text(raw?.deliverable, 500)
@@ -77,6 +97,23 @@ export const normalizeCrewProposal = input => {
     const uncovered = stage.clauseIds.filter(id => !packageClauses.has(id))
     if (uncovered.length > 0) {
       return { error: `第 ${index + 1} 步这些契约要求没有落到工作包：${uncovered.join('、')}` }
+    }
+    // 契约要求里点到的文件，要由写它的那一步来认领：一条要求放在还没写它的步骤里，
+    // 执行商会照着“只改这些文件”不写它，验收员按契约判不通过，白跑一轮返工。
+    const writesAt = at => new Set((Array.isArray(rawStages[at]?.packages) ? rawStages[at].packages : [])
+      .flatMap(item => (Array.isArray(item?.files) ? item.files : []).map(file => cleanPath(text(file, 200))))
+      .filter(Boolean))
+    for (const clause of contract.outcomes) {
+      if (!stage.clauseIds.includes(clause.id)) continue
+      for (const path of pathsOf(`${clause.statement}；${clause.observable}`)) {
+        if (writesPath(writesAt(index), path)) continue
+        const laterIndex = rawStages.findIndex((_other, at) => at > index && writesPath(writesAt(at), path))
+        if (laterIndex >= 0) {
+          return {
+            error: `第 ${index + 1} 步的契约要求「${clause.id}」提到 ${path}，但这一步的工作包不写它，要到第 ${laterIndex + 1} 步才写；把这条要求挪到写出它的那一步，或在这一步的工作包里写上 ${path}`,
+          }
+        }
+      }
     }
     stages.push(stage)
   }

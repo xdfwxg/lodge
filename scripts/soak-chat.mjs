@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createStore } from '../server/crew/store.js'
 import { createRoomChat } from '../server/crew/kernel/live/bus.js'
-import { normalizeTestRoom } from '../server/crew/testing/room.js'
 
 const args = process.argv.slice(2)
 const option = (name, fallback) => {
@@ -29,21 +28,20 @@ const engine = {
   },
 }
 
-const base = normalizeTestRoom({
+const base = {
   id: 'soak-room',
   name: '长跑房',
   goal: '观察长聊天',
   repoPath: '/tmp/lodge-soak',
   demo: true,
-  leadSeat: 'planner',
-  seatBots: { planner: 'b-planner', executor: 'b-executor', verifier: 'b-verifier' },
-  seatNames: { planner: 'Planner1', executor: 'Executor1', verifier: 'Verifier1' },
-  seatSpecs: [
-    { id: 'planner', name: '规划师' },
-    { id: 'executor', name: '执行者' },
-    { id: 'verifier', name: '验收员' },
+  leadMemberId: 'planner',
+  members: [
+    { id: 'planner', role: 'lead', roleKind: 'planner', name: '规划师', body: { kind: 'base', ref: 'b-planner', name: 'Planner1' } },
+    { id: 'executor', role: 'worker', roleKind: 'executor', name: '执行者', body: { kind: 'base', ref: 'b-executor', name: 'Executor1' } },
+    { id: 'verifier', role: 'verifier', roleKind: 'verifier', name: '验收员', body: { kind: 'base', ref: 'b-verifier', name: 'Verifier1' } },
   ],
-})
+  stages: [],
+}
 base.roomType = 'chat'
 base.chat = { speaker: 'executor' }
 base.chatRoom = { id: 'soak-chat', sessionRef: 'soak-thread' }

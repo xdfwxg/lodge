@@ -3,11 +3,16 @@
 pub mod bots;
 pub mod config;
 pub mod events;
+pub mod files;
 pub mod groups;
+pub mod mcp;
+pub mod sandbox;
+pub mod skills;
 pub mod threads;
 
 use std::sync::Arc;
 
+use axum::extract::DefaultBodyLimit;
 use axum::http::StatusCode;
 use axum::response::Json;
 use axum::routing::{delete, get, patch, post, put};
@@ -40,6 +45,13 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/api/bots/:id", patch(bots::patch).delete(bots::delete))
         .route("/api/bots/:id/skills-library", put(bots::set_skills))
         .route("/api/bots/:id/interrupt", post(bots::interrupt))
+        .route("/api/skills-library", get(skills::list).post(skills::import))
+        .route(
+            "/api/skills-library/:name",
+            get(skills::read)
+                .patch(skills::set_enabled)
+                .delete(skills::delete),
+        )
         .route("/api/groups", post(groups::create))
         .route("/api/groups/:id", patch(groups::patch).delete(groups::delete))
         .route("/api/groups/:id/setup", patch(groups::setup))
@@ -50,6 +62,21 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/api/groups/:id/queue/:queue", delete(groups::queue_ack))
         .route("/api/threads/:thread/respond", post(threads::respond))
         .route("/api/threads/:thread/messages", get(threads::messages))
+        .route("/api/sandbox/run", post(sandbox::run))
+        .route("/api/mcp/servers", get(mcp::list).post(mcp::create))
+        .route(
+            "/api/mcp/servers/:name",
+            put(mcp::update).patch(mcp::patch).delete(mcp::remove),
+        )
+        .route(
+            "/api/attachments",
+            post(files::upload_image).layer(DefaultBodyLimit::max(12 * 1024 * 1024)),
+        )
+        .route("/api/attachments/:name", get(files::read))
+        .route(
+            "/api/files",
+            post(files::upload_file).layer(DefaultBodyLimit::max(12 * 1024 * 1024)),
+        )
         .route("/api/events", get(events::stream))
         .with_state(app)
 }

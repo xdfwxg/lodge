@@ -47,7 +47,7 @@ try {
 
 try {
   const base = await getJson(`${baseUrl}/api/health`)
-  check('基座', base.status === 200 && base.body?.app === 'openmausbot', `${baseUrl} · ${base.body?.version ?? '?'}`)
+  check('基座', base.status === 200 && base.body?.ok === true, `${baseUrl} · ${base.body?.version ?? '?'}`)
   if (base.status === 200) {
     const [instances, bootstrap, config] = await Promise.all([
       getJson(`${baseUrl}/api/instances`),

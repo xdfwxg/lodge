@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildMemberHandoff } from './rooms/studio/member-handoff.js'
+import { buildMemberHandoff } from './rooms/studio/delivery/member-handoff.js'
 import { evidenceDigest, stageDigest } from './prompt-context.js'
-import { studioWorkerPrompt } from './rooms/studio/prompts.js'
+import { studioWorkerPrompt } from './rooms/studio/runtime/prompts.js'
 
 const room = {
   id: 'room-order',

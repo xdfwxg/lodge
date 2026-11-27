@@ -2,6 +2,7 @@ import { createElement as h, useState } from 'react'
 import { bodyStatuses } from '../room/body-status.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { engineBlockLabel, engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
+import { policySummaryOf, roomPolicyOf } from '../../../shared/room-policy.js'
 
 const IDLE = 'idle'
 
@@ -111,5 +112,6 @@ export function SideMembers({ room, engines = [], onHold = null, onSwapBody = nu
       className: 'crew-accept crew-side-member-edit-done',
       disabled: !readyToSave,
       onClick: () => void saveAll(),
-    }, saving ? '正在保存…' : '完成'))
+    }, saving ? '正在保存…' : '完成'),
+    h('p', { className: 'crew-side-members-policy' }, `这间房：${policySummaryOf(roomPolicyOf(room), { files: kind.id !== 'chat', external: kind.id !== 'chat' })}`))
 }

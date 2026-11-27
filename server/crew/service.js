@@ -1,10 +1,10 @@
 import * as log from './log.js'
 import { resolve, sep } from 'node:path'
-import { ROOM_STATE, STAGE_STATE } from '../../shared/states.js'
+import { CHAT_PHASE, ROOM_STATE, STAGE_STATE } from '../../shared/states.js'
 import { stagesCompletedOf } from '../../shared/room-status.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { created, fail, ok } from './result.js'
-import { createRoomCompleter } from './rooms/studio/complete.js'
+import { createRoomCompleter } from './rooms/studio/plan/complete.js'
 import { startRound } from './rounds/start.js'
 import { reconcileCompletions } from './rounds/recovery.js'
 import { failRound, rejectRound, resumeRound, stopRound, supersedeRound } from './rounds/lifecycle.js'
@@ -24,10 +24,10 @@ import {
 } from './delivery/email.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
-import { createServiceStages } from './rooms/studio/service-stages.js'
-import { humanHandoffStageOf } from './rooms/studio/human-handoff.js'
+import { createServiceStages } from './rooms/studio/plan/service-stages.js'
+import { humanHandoffStageOf } from './rooms/studio/delivery/human-handoff.js'
 import { createMemberAdd } from './member-add.js'
-import { createPlanApplier } from './rooms/studio/apply-plan.js'
+import { createPlanApplier } from './rooms/studio/plan/apply-plan.js'
 import { createMemberRemove } from './member-remove.js'
 import {
   SAMPLE_CHAT_ROOM_ID,
@@ -40,6 +40,7 @@ import {
 } from './rooms/sample.js'
 import { artifactKindOf, imageMimeOf } from '../../shared/artifact.js'
 import { systemNotice } from './notices.js'
+import { alreadyReceived, normalizeWebhookEvent, verifyWebhookToken, webhookPathOf } from './webhook.js'
 import { plainRuntimeError } from './base-error.js'
 import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
 import { cleanHumanName, setCurrentHumanName } from './human-name.js'
@@ -251,6 +252,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     emit,
     workspace,
     browserMcp: ports.browserMcp ?? null,
+    desktopMcp: ports.desktopMcp ?? null,
     attachMember: (roomId, memberId) => live.attachMember?.(roomId, memberId),
   })
   const memberRemove = createMemberRemove({
@@ -357,6 +359,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
 
   const { roomRequest } = createRoomActions({
     store,
+    engine,
     live,
     emit,
     attachments,
@@ -406,9 +409,51 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     }
   }
 
+  // 外部事件入口：令牌对、房间在、按 id 幂等；落一条外部消息后，聊天室照常接话，工作室只记消息。
+  const webhookReceive = async (roomId, token, body) => {
+    const room = store.readRoom(roomId)
+    if (room === null) return fail('not_found', '没有这个房间')
+    if (webhookPathOf(room) === null) return fail('not_found', '这个房间没有开 webhook')
+    if (!verifyWebhookToken(room, token)) return fail('forbidden', 'webhook 令牌不对')
+    const event = normalizeWebhookEvent(body)
+    if (event.error !== undefined) return fail('invalid', event.error)
+    const recent = store.readRecentMessages(roomId, 200)
+    if (alreadyReceived(recent, event.id)) return ok({ accepted: true, duplicate: true, id: event.id })
+    store.appendMessage(roomId, {
+      kind: 'chat',
+      authorId: 'webhook',
+      text: event.text,
+      meta: { kind: 'webhook', webhookId: event.id },
+    })
+    // 只有聊天室会因此开口；工作室不因为外部事件自己开工，人仍然决定要不要开始。
+    // 讨论已经收口时再开一轮（不写“再讨论一轮”那种人话，事件本身就是由头）；
+    // 还没收口就让在跑的这一轮自己看到时间线里的新消息。
+    if (room.roomType === 'chat') {
+      try {
+        if (room.chat?.phase === CHAT_PHASE.concluded) {
+          const continued = chat.continue(room, { note: '' }, { recordNote: false })
+          // 接着聊失败（没连上模型、额度用完）不能说成“房间看到了”：事件留着，原因也写出来。
+          if (continued?.ok === false) {
+            store.appendMessage(roomId, {
+              kind: 'system',
+              text: `外部事件已经到了，但房间没有接着聊：${continued.error ?? '连不上模型服务'}`,
+            })
+          }
+        } else if (room.chat === undefined) {
+          await roomRequest(roomId, 'messages', { method: 'POST', readBody: async () => ({ text: '' }) })
+        }
+      } catch (error) {
+        store.appendMessage(roomId, { kind: 'system', text: `外部事件已经到了，但房间没有接着聊：${String(error?.message ?? error).slice(0, 120)}` })
+      }
+    }
+    emit('room', store.readRoom(roomId) ?? room)
+    return ok({ accepted: true, id: event.id })
+  }
+
   return {
     ...queries,
     createRoom,
+    webhookReceive,
     createSampleRoom,
     roomRequest,
     emailSettings,

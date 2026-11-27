@@ -26,9 +26,7 @@ export const presentRoom = (room, messages = [], assignments = []) => {
     chatRoom,
     chatHost,
     hiddenBaseMessages,
-    seatBots,
-    seatNames,
-    seatSpecs,
+    webhook,
     ...visibleRoom
   } = room
   // 附件标记只给模型看；界面和生成出来的标题都不该带着它。
@@ -53,6 +51,8 @@ export const presentRoom = (room, messages = [], assignments = []) => {
   const delivery = baseDelivery === null ? null : { ...baseDelivery, prDraft }
   return {
     ...view,
+    // 令牌是凭证，只留在库里；界面和事件流只看到“开没开”，路径由 webhook 动作当场给。
+    webhook: { enabled: typeof webhook?.token === 'string' && webhook.token !== '' },
     revision: room.version ?? 1,
     capabilities: roomCapabilities(room),
     attention,

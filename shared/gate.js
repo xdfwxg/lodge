@@ -63,6 +63,41 @@ const parseInput = value => {
   }
 }
 
+// 被工具拒掉的调用不是一次提交：它的入参看着完整，平台也必须当没收到。
+// 否则模型看到的是“被拒”，平台却按入参算了一票，两边各说各话。
+const refused = call => call?.ok === false
+
+const REFUSAL_LIMIT = 300
+
+// 拒收的回执没有 submissionId，只剩这一句原话；房间和模型都要能读到它。
+const refusalTextOf = output => {
+  const parsed = typeof output === 'string'
+    ? (() => { try { return JSON.parse(output) } catch { return null } })()
+    : output
+  if (parsed === null || typeof parsed !== 'object') {
+    return typeof output === 'string' ? output.trim().slice(0, REFUSAL_LIMIT) : ''
+  }
+  const content = Array.isArray(parsed.content) ? parsed.content : []
+  for (const item of content) {
+    if (item !== null && typeof item === 'object' && typeof item.text === 'string' && item.text.trim() !== '') {
+      return item.text.trim().slice(0, REFUSAL_LIMIT)
+    }
+  }
+  return typeof parsed.error === 'string' ? parsed.error.trim().slice(0, REFUSAL_LIMIT) : ''
+}
+
+// 这一回合被判定工具拒掉的提交，带工具原话：模型按它改参数重交，房间按它说清为什么没结论。
+export const gateRefusalsOf = (calls, { type = null } = {}) => {
+  if (!Array.isArray(calls)) return []
+  const refusals = []
+  for (const call of calls) {
+    const kind = toolKind(call?.name)
+    if (kind === null || (type !== null && kind !== type) || !refused(call)) continue
+    refusals.push({ tool: String(call?.name ?? ''), text: refusalTextOf(call?.output) })
+  }
+  return refusals
+}
+
 // 同一回合可能重试或先调错一次；取最后一次合法提交。
 export const gateSubmissionOf = (calls, {
   type = null,
@@ -74,7 +109,7 @@ export const gateSubmissionOf = (calls, {
   if (!Array.isArray(calls)) return null
   for (const call of [...calls].reverse()) {
     const kind = toolKind(call?.name)
-    if (kind === null || (type !== null && kind !== type)) continue
+    if (kind === null || (type !== null && kind !== type) || refused(call)) continue
     const judgment = judgmentFromGate({
       type: kind,
       input: parseInput(call?.input),

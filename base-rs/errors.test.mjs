@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { createBaseClient } from '../server/base.js'
 
 const dir = dirname(fileURLToPath(import.meta.url))
-const bin = process.env.LODGE_BASE_RS_BIN ?? join(dir, 'target', 'debug', 'lodge-base-slice')
+const bin = process.env.LODGE_BASE_RS_BIN ?? join(dir, 'target', 'debug', process.platform === 'win32' ? 'lodge-base-slice.exe' : 'lodge-base-slice')
 const port = 21500 + Math.floor(Math.random() * 300)
 const baseUrl = `http://127.0.0.1:${port}`
 const dataDir = mkdtempSync(join(tmpdir(), 'lodge-base-errors-'))

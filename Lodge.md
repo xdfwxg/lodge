@@ -227,7 +227,7 @@ Gate 是工作室的检查点，不是角色，只回答两次：这份交接能
 
 ## 参考与文档
 
-- 基座复用 OpenMausBot OSS 的 runtime、drivers、Electron 壳（Apache-2.0）；产品名、品牌与产品面全部是自己的。
+- 基座是自己的 Rust 薄基座（`base-rs/`）；沙箱规则改写自 OpenMausBot OSS 的 bot-box（Apache-2.0，归属随包）。产品名、品牌与产品面全部是自己的。
 - 设计参考 Claude-Bot / DS Bot 的优秀交互（Apache-2.0），保留许可与归属，不继承其宿主/插件耦合。
 - 不引入 CrewAI、LangGraph、AutoGen 这类编排框架：多一层状态真相，就多一处不一致。
 

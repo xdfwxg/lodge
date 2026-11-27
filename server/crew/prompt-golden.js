@@ -1,6 +1,6 @@
 import { conclusionReviewPrompt, hostPrompt, speakerPrompt } from './rooms/chat/prompts.js'
 import { alignmentPrompt } from './rooms/create/prompts.js'
-import { studioWorkerPrompt } from './rooms/studio/prompts.js'
+import { studioWorkerPrompt } from './rooms/studio/runtime/prompts.js'
 import { STAGE_STATUS } from '../../shared/states.js'
 
 // 提示词是行为的一部分：模型看到什么，房间就怎么工作。

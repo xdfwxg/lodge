@@ -23,6 +23,7 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
   return {
     baseUrl,
     bootstrap: () => json('/api/bots?messages=0'),
+    health: () => json('/api/health'),
 
     // 基座自己的附件库：图片走原生视觉输入，文件按路径交给能读文件的人。
     uploadImage: (bytes, mime) => json('/api/attachments', {
@@ -61,6 +62,9 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
       timeout: 15_000,
     }),
 
+    deleteLibrarySkill: name => json(`/api/skills-library/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
     approveLibrarySkill: name => json(`/api/skills-library/${encodeURIComponent(name)}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -171,6 +175,14 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
       timeout: 10_000,
     }),
 
+    // 受限执行：证明/反例由基座在边界里跑。work 必须在基座声明的工作根下，整轮不出网。
+    runSandboxed: ({ work, command, timeoutMs = 120_000 } = {}) => json('/api/sandbox/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ work, command, timeoutMs }),
+      timeout: timeoutMs + 5_000,
+    }),
+
     createGroup: payload => json('/api/groups', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -201,21 +213,32 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
 
     deleteGroup: groupId => json(`/api/groups/${groupId}`, { method: 'DELETE', timeout: 10_000 }),
 
-    async watchEvents({ onFrame, onState, signal }) {
+    async watchEvents({ onFrame, onState, signal, retryMs = 2_000 }) {
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
       let lastEventId = null
+      // 重连退避：连接断了先等 2 秒，连着断就翻倍，封顶 30 秒，连上之后恢复。
+      // 每 2 秒一条新连接会在基座忙碌时堆成连接风暴（真实现场：30 分钟 800 多个 socket）。
+      let failures = 0
       while (!signal?.aborted) {
+        // 每条连接自己的 AbortController：断开、出错、重连之前都要把它读的一端关掉。
+        // 只靠外面那一个 signal，重连时旧连接的 body 没人取消，socket 会一直挂在进程里
+        // （真实现场：一次半小时的会话攒了 800 多个 CLOSED socket，最后把监听挤死）。
+        const connection = new AbortController()
+        const stop = () => connection.abort()
+        signal?.addEventListener?.('abort', stop, { once: true })
+        let reader = null
         try {
           const response = await fetch(new URL('/api/events', baseUrl), {
-            signal,
+            signal: connection.signal,
             headers: {
               accept: 'text/event-stream',
               ...(lastEventId === null ? {} : { 'last-event-id': lastEventId }),
             },
           })
           if (!response.ok || response.body === null) throw new Error(`events ${response.status}`)
+          failures = 0
           onState?.({ connected: true, error: null })
-          const reader = response.body.getReader()
+          reader = response.body.getReader()
           const decoder = new TextDecoder()
           let buffer = ''
           while (true) {
@@ -248,10 +271,18 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
           }
         } catch (error) {
           if (signal?.aborted) return
+          failures += 1
           onState?.({ connected: false, error: String(error?.message ?? error) })
+        } finally {
+          signal?.removeEventListener?.('abort', stop)
+          try {
+            await reader?.cancel()
+          } catch {}
+          connection.abort()
+          reader = null
         }
         if (signal?.aborted) return
-        await wait(2_000)
+        await wait(Math.min(30_000, retryMs * 2 ** Math.min(failures, 4)))
       }
     },
   }

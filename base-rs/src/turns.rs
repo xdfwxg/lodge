@@ -51,7 +51,7 @@ impl CancelToken {
     pub fn stop(&self) {
         let pid = self.pid.lock().ok().and_then(|slot| *slot);
         if let Some(pid) = pid {
-            kill_group(pid, libc::SIGTERM);
+            stop_tree(pid);
         }
     }
 
@@ -65,21 +65,36 @@ impl CancelToken {
     fn kill(&self) {
         let pid = self.pid.lock().ok().and_then(|slot| *slot);
         if let Some(pid) = pid {
-            kill_group(pid, libc::SIGTERM);
+            stop_tree(pid);
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(1500));
-                kill_group(pid, libc::SIGKILL);
+                kill_tree(pid);
             });
         }
     }
 }
 
-fn kill_group(pid: u32, signal: i32) {
-    // 子进程用 process_group(0) 启动，负 pid 杀整组（包含它派生的进程）。
-    unsafe {
-        libc::kill(-(pid as i32), signal);
-    }
+#[cfg(unix)]
+fn stop_tree(pid: u32) {
+    crate::sandbox::signal_tree(pid, libc::SIGTERM);
 }
+
+#[cfg(unix)]
+fn kill_tree(pid: u32) {
+    crate::sandbox::signal_tree(pid, libc::SIGKILL);
+}
+
+#[cfg(windows)]
+fn stop_tree(pid: u32) {
+    // Windows 没有进程组信号；直接按进程树收掉，Job Object 会在句柄关闭时兜底。
+    crate::platform::terminate_tree(pid);
+}
+
+#[cfg(windows)]
+fn kill_tree(pid: u32) {
+    crate::platform::terminate_tree(pid);
+}
+
 
 #[derive(Clone)]
 pub struct TurnHandle {
@@ -273,7 +288,9 @@ fn finish(
                 "at": at,
                 "durationMs": duration_ms,
                 "reply": text,
-                "toolCalls": 0,
+                // 终态投影：房间靠它区分“做完”和“被停下 / 失败”，不再只看有没有文字。
+                "stopReason": outcome.as_str(),
+                "toolCalls": usage.tool_calls,
                 "usage": {
                     "input": usage.input,
                     "output": usage.output,
@@ -402,6 +419,51 @@ mod tests {
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(0);
         assert!(duration >= 25, "durationMs 应来自回合起点，实际 {duration}");
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(path.with_extension("db-shm"));
+    }
+
+    #[test]
+    fn the_digest_reports_the_real_tool_call_count() {
+        let path = std::env::temp_dir().join(format!("lodge-tools-{}.db", uuid::Uuid::new_v4()));
+        let store = std::sync::Arc::new(crate::store::Store::open(&path).unwrap());
+        store.start_turn("t1", "b1", "turn-1").unwrap();
+        let events = crate::events::EventBus::new(store.clone());
+        let registry = TurnRegistry::default();
+        assert!(registry.try_register("t1", TurnHandle {
+            thread_id: "t1".into(),
+            bot_id: "b1".into(),
+            turn_id: "turn-1".into(),
+            cancel: CancelToken::new(),
+        }));
+        settle(
+            &registry,
+            &store,
+            &events,
+            "t1",
+            "b1",
+            "turn-1",
+            TurnOutcome::Completed,
+            "done",
+            &TurnUsage { input: 1, output: 1, cache_read: 0, tool_calls: 7 },
+        );
+        let messages = store.thread_messages("t1", 100).unwrap();
+        let digest = messages
+            .iter()
+            .find(|message| message.get("kind").and_then(serde_json::Value::as_str) == Some("digest"))
+            .and_then(|message| message.get("digest"))
+            .expect("a terminal digest");
+        assert_eq!(
+            digest.get("toolCalls").and_then(serde_json::Value::as_u64),
+            Some(7),
+            "工具次数是回合事实，不能写死成 0"
+        );
+        assert_eq!(
+            digest.get("stopReason").and_then(serde_json::Value::as_str),
+            Some("completed"),
+            "终态要进 digest：房间靠它区分做完和被停下"
+        );
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_extension("db-wal"));
         let _ = std::fs::remove_file(path.with_extension("db-shm"));

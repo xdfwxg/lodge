@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { gateSubmissionOf, isGateToolName, rewindRequestOf, resumeRequestOf, stopRequestOf } from './gate.js'
+import { gateRefusalsOf, gateSubmissionOf, isGateToolName, rewindRequestOf, resumeRequestOf, stopRequestOf } from './gate.js'
 import { judgmentFromGate } from './judgment.js'
 
 const verdict = overrides => ({
@@ -76,6 +76,31 @@ test('the last valid submission wins and malformed calls are skipped', () => {
   ], { type: 'verdict' })
   assert.equal(judgment.decision, 'pass')
   assert.equal(judgment.reason, '新结论')
+})
+
+test('a call the gate refused is not a submission, even when its input looks complete', () => {
+  const refused = { ...verdict(), ok: false, output: JSON.stringify({ isError: true, content: [] }) }
+  assert.equal(gateSubmissionOf([refused], { type: 'verdict' }), null)
+  // 同回合先被拒、后改对：只认改对的那一次。
+  const judgment = gateSubmissionOf([refused, verdict({ reason: '补齐后重交' })], { type: 'verdict' })
+  assert.equal(judgment.reason, '补齐后重交')
+})
+
+test('the gate refusal keeps the tool’s own words', () => {
+  const output = JSON.stringify({
+    isError: true,
+    content: [{ type: 'text', text: 'PASS 要写一条 diff 之外的风险；没有就写「无」。' }],
+  })
+  const refusals = gateRefusalsOf([
+    { name: 'mcp__lodge_gate__submit_verdict', input: '{}', ok: false, output },
+    { name: 'mcp__lodge_gate__submit_verdict', input: '{}', ok: true, output: '{}' },
+    { name: 'bash', input: '{}', ok: false, output: '{"error":"nope"}' },
+    { name: 'submit_decision', input: '{}', ok: false, output: '方案不完整' },
+  ], { type: 'verdict' })
+  assert.deepEqual(refusals, [{
+    tool: 'mcp__lodge_gate__submit_verdict',
+    text: 'PASS 要写一条 diff 之外的风险；没有就写「无」。',
+  }])
 })
 
 test('a planner decision accepts Chinese anchors and fills actionRequired', () => {

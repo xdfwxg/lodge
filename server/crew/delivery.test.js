@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildDelivery } from './rooms/studio/delivery.js'
+import { buildDelivery } from './rooms/studio/delivery/delivery.js'
 import { presentRoom } from './presentation.js'
 
 const room = (over = {}) => ({

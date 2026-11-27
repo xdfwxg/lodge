@@ -5,6 +5,7 @@ import { normalizeHandoffBrief } from '../../../../shared/handoff-brief.js'
 import { normalizeContract } from '../../../../shared/contract.js'
 import { normalizeReceipt } from '../../../../shared/receipt.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'
+import { normalizeRoomPolicy } from '../../../../shared/room-policy.js'
 import {
   DEFAULT_TEMPLATE_ID,
   roleMembers,
@@ -49,6 +50,8 @@ export const normalizeRequest = body => {
   const sourceRoomId = typeof body.sourceRoomId === 'string' ? body.sourceRoomId.trim().slice(0, 120) : ''
   const sourceName = typeof body.sourceName === 'string' ? body.sourceName.trim().slice(0, 120) : ''
   const project = isStudio ? normalizeProject(body.project) ?? { northStar: goal } : null
+  const { policy, error: policyError } = normalizeRoomPolicy(body.policy)
+  if (policyError !== undefined) return { error: policyError }
   return {
     goal,
     name,
@@ -62,6 +65,7 @@ export const normalizeRequest = body => {
     sourceRoomId,
     sourceName,
     bootstrap,
+    policy,
   }
 }
 

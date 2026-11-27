@@ -92,13 +92,12 @@ export const chatKind = {
     return room
   },
 
-  needsYou: room => {
-    // 聊天室没有“待处理的结论”。只有真的出错才打断用户；聊到一半或聊完都只是状态。
-    if (room.memberError !== undefined || room.pauseReason === 'member_error') {
-      return { kind: 'error', stage: null, label: '成员没回应' }
-    }
-    return null
-  },
+  // 聊天室没有“待处理的结论”，只有真的出错才打断用户。
+  stopOf: room => (
+    room.memberError !== undefined || room.pauseReason === 'member_error'
+      ? { kind: 'error', stage: null, label: '成员没回应' }
+      : null
+  ),
 
   filterMessages: messages => chatProjection.filterMessages(messages, isChatSystemNoise),
   hideActivity: chatProjection.hideActivity,

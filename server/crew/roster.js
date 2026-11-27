@@ -34,7 +34,7 @@ const cloneMember = member => ({
   permissions: { ...member.permissions },
   toolSurface: [...member.toolSurface],
   skills: [...member.skills],
-  mcp: member.mcp.map(grant => ({ ...grant, scopes: [...grant.scopes] })),
+  mcp: member.mcp.map(grant => ({ server: grant.server, approval: grant.approval })),
 })
 
 export const membersFor = (id = DEFAULT_TEMPLATE_ID) => {
@@ -127,9 +127,6 @@ const validateCapabilities = member => {
   for (const grant of member.mcp) {
     if (!isId(grant?.server)) {
       throw new Error(`member contract: ${member.id} mcp server must be a name, not a URL or credential`)
-    }
-    if (!Array.isArray(grant.scopes) || grant.scopes.length === 0 || grant.scopes.some(scope => !TOOL_SCOPES.includes(scope))) {
-      throw new Error(`member contract: ${member.id} mcp scopes are invalid`)
     }
     if (grant.approval !== 'ask') {
       throw new Error(`member contract: ${member.id} external tools require approval`)

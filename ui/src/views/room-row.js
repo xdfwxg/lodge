@@ -4,9 +4,12 @@ import { useOverlay } from '../overlay.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { initialOf } from '../marks.js'
 import { SideMembers } from './side-members.js'
+import { PermissionDialog } from '../room/permission-dialog.js'
+import { EventLinkDialog } from '../room/event-link-dialog.js'
 import { deliveredOf, metaOf, roomLabelOf, toneOf } from './room-list.js'
 import { hasNeedsAction, needsAction } from '../needs.js'
 import { roomDeletableNow } from '../../../shared/room-status.js'
+import { policyIsDefault, roomPolicyOf } from '../../../shared/room-policy.js'
 
 function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
   const deleting = kind === 'delete'
@@ -32,7 +35,7 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
         }, busy ? '正在处理…' : deleting ? '删除' : '归档'))))
 }
 
-function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete, onRounds = null, onHold = null, engines = [], onSwapBody = null }) {
+function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete, onRounds = null, onHold = null, engines = [], onSwapBody = null, onPolicy = null, onWebhook = null }) {
   const archived = Boolean(room.archivedAt)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuAt, setMenuAt] = useState(null)
@@ -41,6 +44,8 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
   const [membersAt, setMembersAt] = useState(null)
   const [draft, setDraft] = useState(room.name)
   const [confirm, setConfirm] = useState(null)
+  const [policyOpen, setPolicyOpen] = useState(false)
+  const [eventLinkOpen, setEventLinkOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const moreRef = useRef(null)
@@ -127,7 +132,9 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
 
   const lodge = room.lodge === true
   const label = stamp === '' ? roomLabelOf(room) : `${roomLabelOf(room)}，${stamp}`
-  const subLine = stamp
+  // 改过的权限在行上留一行字；旧房间没有 policy 字段，不拿它当“改过”。
+  const policyChanged = room.policy !== undefined && !policyIsDefault(roomPolicyOf(room))
+  const subLine = [stamp, policyChanged ? '已改权限' : ''].filter(Boolean).join(' · ')
   const kind = uiKindOfRoom(room)
   const TypeIcon = kind.icon
   const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
@@ -143,7 +150,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
     const rect = moreRef.current?.getBoundingClientRect()
     if (rect === undefined || rect === null) return
     const width = 144
-    const height = 148
+    const height = 184
     const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))
     const top = rect.bottom + height > window.innerHeight - 8
       ? Math.max(8, rect.top - height - 4)
@@ -322,6 +329,25 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
             onClick: () => { closeMenu(); onRounds() },
           }, '历史')
           : null,
+        onPolicy === undefined || archived ? null : h('button', {
+          type: 'button',
+          role: 'menuitem',
+          className: 'crew-side-menu-item',
+          disabled: busy,
+          onClick: () => {
+            closeMenu()
+            setPolicyOpen(true)
+          },
+        }, '权限…'),
+        onWebhook === null || archived || room.lodge === true ? null : h('button', {
+          type: 'button',
+          role: 'menuitem',
+          className: 'crew-side-menu-item',
+          onClick: () => {
+            closeMenu()
+            setEventLinkOpen(true)
+          },
+        }, '外部事件…'),
         onArchive === undefined ? null : h('button', {
           type: 'button',
           role: 'menuitem',
@@ -339,6 +365,29 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         }, '删除…')), document.body)
       : null,
     note === '' ? null : h('p', { className: 'crew-side-row-note', role: 'alert' }, note)),
+    eventLinkOpen
+      ? h(EventLinkDialog, {
+        room,
+        onAction: action => onWebhook(room.id, action),
+        onClose: () => setEventLinkOpen(false),
+      })
+      : null,
+    policyOpen
+      ? h(PermissionDialog, {
+        room,
+        busy,
+        onClose: () => { if (!busy) setPolicyOpen(false) },
+        onSave: async policy => {
+          if (busy || onPolicy === undefined) return
+          setBusy(true)
+          setNote('')
+          const result = await onPolicy(policy)
+          setBusy(false)
+          if (result?.ok === true) setPolicyOpen(false)
+          else setNote(result?.error ?? '权限没能保存')
+        },
+      })
+      : null,
     membersOpen && membersAt !== null
       ? createPortal(h('div', {
         ref: membersRef,

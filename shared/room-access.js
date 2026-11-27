@@ -44,10 +44,9 @@ export const hasBrowserGrant = member => browserGrantsOf(member)
   .some(grant => grant?.server === BROWSER_MCP_SERVER_NAME)
 
 // 浏览器以外的外部工具仍然受角色契约约束；这个判断只放行只读公网浏览。
+// 浏览器授权只是“只读研究”这项能力的载体：用服务器名和审批口径认它。
+// 哪些浏览器工具算只读由工具名那张表说了算（READ_ONLY_BROWSER_TOOLS），
+// 不靠一个没人执行的 scopes 字段假装是“只读授权”。
 export const isBrowserGrant = grant => (
-  grant?.server === BROWSER_MCP_SERVER_NAME &&
-  Array.isArray(grant.scopes) &&
-  grant.scopes.length === 1 &&
-  grant.scopes[0] === 'read' &&
-  grant.approval === 'ask'
+  grant?.server === BROWSER_MCP_SERVER_NAME && grant.approval === 'ask'
 )

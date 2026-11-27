@@ -22,8 +22,11 @@
   ],
   "ignoreExportsUsedInFile": true,
   "ignoreBinaries": [
-    "pi",
-    "where.exe"
+    "pi"
+  ],
+  // pi 会把 typebox 映射给它自己的副本，扩展按需 import；这不是 Lodge 的依赖。
+  "ignoreDependencies": [
+    "typebox"
   ],
   // workspace provider 的方法通过运行时接口取用，静态分析看不到调用方。
   "ignoreIssues": {

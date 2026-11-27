@@ -1,3 +1,5 @@
+import { desktopMcpAvailable } from '../../../desktop-mcp.js'
+
 export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourceRepo, workspacePort }) => {
   const explicitWorkspace = typeof body.workspaceProvider === 'string' ? body.workspaceProvider.trim() : ''
   let provider = workspace
@@ -18,6 +20,9 @@ export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourc
     }
   }
   if (provider === undefined) return { error: '这个工作文件夹类型还不支持' }
+  if (provider.capabilities?.().desktop === true && !desktopMcpAvailable()) {
+    return { error: '这台电脑还没有接上电脑操作的提供方；先配置 LODGE_DESKTOP_MCP_URL' }
+  }
   if (requestedRepo !== '' && provider.id === 'plain') {
     const probe = provider.probeSource({ source: sourceRepo })
     if (!probe.ok) return { error: probe.error }

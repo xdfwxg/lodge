@@ -2,19 +2,19 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { PROOF_ENTRY_LIMIT, normalizeProof } from './proof.js'
 
-test('a proof names one entry and optional clause steps', () => {
+test('a proof is one entry plus optional extra commands', () => {
+  // 只有命令，没有 clause：要求覆盖由验收员的复核负责，这份文件不对账。
   const proof = normalizeProof({
     entry: 'npm test',
-    steps: [
-      { clause: 'export', run: 'npm test', expect: 'exit 0' },
-      { clause: '', run: 'npm run lint' },
-      { run: '' },
-    ],
+    steps: ['npm run lint', { run: 'npm run typecheck' }, { run: '' }, 42],
   })
   assert.equal(proof.entry, 'npm test')
-  assert.equal(proof.steps.length, 2)
-  assert.deepEqual(proof.steps[0], { clause: 'export', run: 'npm test', expect: 'exit 0' })
-  assert.deepEqual(proof.steps[1], { run: 'npm run lint' })
+  assert.deepEqual(proof.steps, ['npm run lint', 'npm run typecheck'])
+  // 旧写法（带 clause 的对象）也只取命令本身。
+  assert.deepEqual(
+    normalizeProof({ entry: 'npm test', steps: [{ clause: 'c1', run: 'npm test' }] }).steps,
+    ['npm test'],
+  )
 })
 
 test('a proof without an entry is not a proof', () => {

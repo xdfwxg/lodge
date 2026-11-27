@@ -72,7 +72,74 @@ impl Lease {
     }
 }
 
-fn string_list(value: Option<&Value>) -> Vec<String> {
+/// 一回合的运行时预算：工具调用数、墙上时间、多久没动静算停。数字是产品默认，基座只执行。
+pub const DEFAULT_TOOL_CALLS: u64 = 1000;
+pub const DEFAULT_MAX_MS: u64 = 4 * 60 * 60 * 1000;
+/// 模型服务可能卡住：一整回合可以长，但“一个字都不出”不能无限等。
+pub const DEFAULT_IDLE_MS: u64 = 2 * 60 * 1000;
+
+#[derive(Clone, Debug)]
+pub struct TurnBudget {
+    pub tool_calls: u64,
+    pub max_ms: u64,
+    pub idle_ms: u64,
+}
+
+/// 显式声明的预算；没声明或写了不合理的值，用基座的安全默认，不放开成无限。
+pub fn budget_of(settings: &Value) -> TurnBudget {
+    let declared = settings.get("budget");
+    TurnBudget {
+        tool_calls: declared
+            .and_then(|budget| budget.get("toolCalls"))
+            .and_then(Value::as_u64)
+            .filter(|count| *count > 0)
+            .unwrap_or(DEFAULT_TOOL_CALLS),
+        max_ms: declared
+            .and_then(|budget| budget.get("maxMs"))
+            .and_then(Value::as_u64)
+            .filter(|ms| *ms >= 1000)
+            .unwrap_or(DEFAULT_MAX_MS),
+        idle_ms: declared
+            .and_then(|budget| budget.get("idleMs"))
+            .and_then(Value::as_u64)
+            .filter(|ms| *ms >= 1000)
+            .unwrap_or(DEFAULT_IDLE_MS),
+    }
+}
+
+/// bot 设置里的显式原生工具授权；没声明就是没有授权，不按房型猜。
+/// 不在这里维护工具名白名单：pi 升级多出新工具时，Lodge 声明就能用，基座不用改。
+pub fn native_tools_of(settings: &Value) -> Vec<String> {
+    let mut tools: Vec<String> = string_list(settings.get("nativeTools"))
+        .into_iter()
+        .filter(|name| !name.trim().is_empty())
+        .collect();
+    tools.sort();
+    tools.dedup();
+    tools
+}
+
+/// Lodge 的工具选择是 `native:<name>` / `mcp:<server>:<name>`；pi 认的是 `name` / `mcp__server__name`。
+/// 只翻译 deny 清单：allow 清单是基座自己的工具面前提，不在这里二次解释。
+pub fn exclude_tools_of(settings: &Value) -> Vec<String> {
+    let deny = string_list(settings.get("toolScope").and_then(|scope| scope.get("deny")));
+    let mut tools: Vec<String> = deny
+        .into_iter()
+        .filter_map(|selector| {
+            if let Some(name) = selector.strip_prefix("native:") {
+                return Some(name.to_string());
+            }
+            let rest = selector.strip_prefix("mcp:")?;
+            let (server, tool) = rest.split_once(':')?;
+            Some(format!("mcp__{server}__{tool}"))
+        })
+        .collect();
+    tools.sort();
+    tools.dedup();
+    tools
+}
+
+pub(crate) fn string_list(value: Option<&Value>) -> Vec<String> {
     match value {
         Some(Value::Array(items)) => items
             .iter()
@@ -109,10 +176,13 @@ pub struct TurnUsage {
     pub input: u64,
     pub output: u64,
     pub cache_read: u64,
+    /// 这一回合实际发生的工具调用次数；digest 如实报它，诊断和界面不再自己猜。
+    pub tool_calls: u64,
 }
 
 impl TurnUsage {
     /// 一次回合可能有多条 assistant 消息（工具循环）；用量按消息累加。
+    /// 工具次数由驱动自己记，不随消息重复累加。
     pub fn merge(&mut self, other: &TurnUsage) {
         self.input = self.input.saturating_add(other.input);
         self.output = self.output.saturating_add(other.output);
@@ -131,6 +201,48 @@ mod tests {
         assert!(lease.read.is_empty());
         assert!(lease.write.is_empty());
         assert!(!lease.exec);
+    }
+
+    #[test]
+    fn a_budget_falls_back_to_safe_defaults() {
+        let fallback = budget_of(&json!({}));
+        assert_eq!(fallback.tool_calls, DEFAULT_TOOL_CALLS);
+        assert_eq!(fallback.max_ms, DEFAULT_MAX_MS);
+        assert_eq!(fallback.idle_ms, DEFAULT_IDLE_MS);
+        let declared = budget_of(&json!({ "budget": { "toolCalls": 12, "maxMs": 5000, "idleMs": 90_000 } }));
+        assert_eq!(declared.tool_calls, 12);
+        assert_eq!(declared.max_ms, 5000);
+        assert_eq!(declared.idle_ms, 90_000);
+        let nonsense = budget_of(&json!({ "budget": { "toolCalls": 0, "maxMs": 10, "idleMs": 1 } }));
+        assert_eq!(nonsense.tool_calls, DEFAULT_TOOL_CALLS);
+        assert_eq!(nonsense.max_ms, DEFAULT_MAX_MS);
+        assert_eq!(nonsense.idle_ms, DEFAULT_IDLE_MS);
+    }
+
+    #[test]
+    fn native_tools_come_from_the_declaration_without_a_hardcoded_list() {
+        assert!(native_tools_of(&json!({})).is_empty(), "没声明就是没有工具");
+        assert_eq!(
+            native_tools_of(&json!({ "nativeTools": ["bash", "read", "rm", "read"] })),
+            vec!["bash".to_string(), "read".to_string(), "rm".to_string()],
+            "重复的丢掉；名字不靠基座白名单，pi 升级多出的工具声明就能用"
+        );
+    }
+
+    #[test]
+    fn denied_tools_are_translated_for_pi() {
+        let settings = json!({
+            "toolScope": { "deny": ["mcp:agents:*", "mcp:lodge_gate:submit_verdict", "native:bash"] }
+        });
+        assert_eq!(
+            exclude_tools_of(&settings),
+            vec![
+                "bash".to_string(),
+                "mcp__agents__*".to_string(),
+                "mcp__lodge_gate__submit_verdict".to_string(),
+            ]
+        );
+        assert!(exclude_tools_of(&json!({})).is_empty());
     }
 
     #[test]

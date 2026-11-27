@@ -10,7 +10,7 @@ import { createBaseClient } from '../server/base.js'
 import { createEngine } from '../server/engine.js'
 
 const dir = dirname(fileURLToPath(import.meta.url))
-const bin = process.env.LODGE_BASE_RS_BIN ?? join(dir, 'target', 'debug', 'lodge-base-slice')
+const bin = process.env.LODGE_BASE_RS_BIN ?? join(dir, 'target', 'debug', process.platform === 'win32' ? 'lodge-base-slice.exe' : 'lodge-base-slice')
 const port = 18000 + Math.floor(Math.random() * 1000)
 const baseUrl = `http://127.0.0.1:${port}`
 const dataDir = mkdtempSync(join(tmpdir(), 'lodge-base-'))
@@ -85,6 +85,11 @@ try {
   const client = createBaseClient({ baseUrl })
   const engine = createEngine({ client })
 
+  const health = await (await fetch(`${baseUrl}/api/health`)).json()
+  assert.equal(health.egress, 'proxy', 'the base serves a proxy by default')
+  assert.equal(typeof health.egress_blocked, 'number')
+  if (process.platform === 'darwin') assert.equal(health.box, 'on')
+
   const instances = await client.instances()
   assert.equal(instances.instances[0].instanceId, 'fake')
 
@@ -117,6 +122,50 @@ try {
   assert.equal(held?.holds?.[bot.id], true)
   await assert.rejects(() => client.sendGroupMessage(group.id, '被叫停'), /base 409/)
   await client.setGroupHold(group.id, bot.id, false)
+
+  // 技能库：名字来自前言，同名不覆盖；分配要写进 bot，名字不在库里就拒绝。
+  const imported = await client.importLibrarySkill('---\nname: contract-skill\n---\n# 契约技能\n先说结论。')
+  assert.equal(imported.name, 'contract-skill')
+  const duplicate = await client.importLibrarySkill('---\nname: contract-skill\n---\n# 覆盖尝试\n')
+  assert.equal(duplicate.created, false)
+  assert.equal(
+    (await client.skillsLibrary()).skills.find(skill => skill.name === 'contract-skill')?.enabled,
+    false,
+  )
+  await client.approveLibrarySkill('contract-skill')
+  assert.equal(
+    (await client.skillsLibrary()).skills.find(skill => skill.name === 'contract-skill')?.enabled,
+    true,
+  )
+  assert.match((await client.readLibrarySkill('contract-skill')).text, /先说结论/)
+  await client.setBotSkills(bot.id, ['contract-skill'])
+  await assert.rejects(() => client.setBotSkills(bot.id, ['missing-skill']), /base 404/)
+  assert.equal((await client.readLibrarySkill('contract-skill')).text.includes('先说结论'), true)
+  const config = await (await fetch(`${baseUrl}/api/config`)).json()
+  assert.equal(config.features.skillsLibrary, true)
+
+  // MCP 注册表：建、停用、改、删都是往返；PATCH 不能把启动参数抹掉。
+  const createdMcp = await client.createMcpServer({ name: 'gate', command: process.execPath, args: ['-e', 'x'] })
+  assert.ok(createdMcp.servers.some(server => server.name === 'gate' && server.enabled === true))
+  await client.patchMcpServer('gate', { enabled: false })
+  assert.equal((await client.mcpServers()).servers.find(server => server.name === 'gate')?.enabled, false)
+  assert.equal((await client.mcpServers()).servers.find(server => server.name === 'gate')?.command, process.execPath)
+  await client.updateMcpServer('gate', { command: 'node', args: ['a.js'], enabled: true })
+  assert.equal((await client.mcpServers()).servers.find(server => server.name === 'gate')?.command, 'node')
+  await client.deleteMcpServer('gate')
+  assert.equal((await client.mcpServers()).servers.some(server => server.name === 'gate'), false)
+
+  // 附件：名字由基座生成，读回来字节和类型一致；路径穿越的名字一律不认。
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  const image = await client.uploadImage(png, 'image/png')
+  assert.match(image.path, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.png$/)
+  const readBack = await client.attachment(image.path)
+  assert.deepEqual(readBack.bytes, png)
+  assert.equal(readBack.mime, 'image/png')
+  const file = await client.uploadFile(Buffer.from('hello'), 'notes.txt', 'text/plain')
+  assert.equal(file.name, 'notes.txt')
+  assert.match(file.path, /\.txt$/)
+  await assert.rejects(() => client.attachment('../etc/passwd'), /base 404/)
 
   // 事件要经 engine 的归一化，才是 Lodge 真正消费的形状；只看原始帧会假绿。
   const events = []
@@ -156,10 +205,10 @@ try {
     'mentioned member answers',
   )
 
-  // 没接入的驱动诚实失败，不静默换模型。
+  // 没接入的驱动诚实失败，不静默换模型。claude 与 codex 已接入，这里用仍未接入的 gemini。
   const unsupported = (await client.createBot({
     name: '未接入',
-    modelSelection: { instanceId: 'claude', model: '' },
+    modelSelection: { instanceId: 'gemini', model: '' },
     settings: { toolScope: { deny: [] } },
   })).bot
   await client.patchGroup(group.id, { memberIds: [bot.id, second.id, unsupported.id] })

@@ -147,6 +147,8 @@ export function App() {
         onHoldMember: (roomId, memberId, held) => store.holdMember(roomId, memberId, held),
         engines: state.engines ?? [],
         onSwapBody: (roomId, memberId, engine, model) => store.swapBodyIn(roomId, memberId, engine, model),
+        onPolicy: (id, policy) => store.setRoomPolicy(id, policy),
+        onWebhook: (id, action) => store.roomWebhook(id, action),
         onRename: (id, name) => store.renameRoom(id, name),
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),

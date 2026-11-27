@@ -83,7 +83,7 @@ const harness = ({ failCreate = false } = {}) => {
     workspace,
     attachMember: async (_roomId, memberId) => calls.attached.push(memberId),
   })
-  return { add, calls, get room() { return room } }
+  return { add, calls, engine, get room() { return room } }
 }
 
 test('adding an executor appends a member with a body and a station', async () => {
@@ -109,6 +109,25 @@ test('adding an executor appends a member with a body and a station', async () =
   assert.match(calls.members[0].soul, /你是执行官二号/)
   assert.match(added.body.spec.prompt, /你是执行官二号/)
   assert.deepEqual(added.body.spec.skills, skillsForRole('worker'))
+})
+
+test('a model without a tool surface is refused in its own words', async () => {
+  const { add, calls, engine, room } = harness()
+  engine.instances = async () => [
+    { id: 'codex', engine: 'codex', name: 'Codex', available: true, authenticated: true, models: { default: 'deepseek-chat', options: [] }, capabilities: { approvalReview: false, tools: false } },
+  ]
+  const result = await add.add(room, { role: 'executor', name: '执行官二号', engine: 'codex', model: 'deepseek-chat' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /还不能改文件、跑命令/)
+  assert.equal(calls.members.length, 0)
+})
+
+test('a desktop room allows only one executor', async () => {
+  const { add, room } = harness()
+  room.workspace = { provider: 'desktop', capabilities: { desktop: true } }
+  const result = await add.add(room, { role: 'executor', name: '第二个执行', engine: 'pi', model: 'flash' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /只能有一位执行官/)
 })
 
 test('a delivered room refuses new members', async () => {
